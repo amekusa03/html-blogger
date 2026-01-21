@@ -6,6 +6,7 @@ import sys
 import tkinter as Tkinter
 import subprocess
 import datetime
+from pathlib import Path
 
 pythonproccess = [['キーワード作成', 'add_keywords.py'],
                 ['htmlクリーニング', 'cleaner.py'],
@@ -31,7 +32,7 @@ def StartEntryValue(event):
             break
     # ここで処理を開始する
     global process
-    process = subprocess.Popen(['python', script_name], stdout=subprocess.PIPE, text=True)
+    process = subprocess.Popen([sys.executable, script_name], stdout=subprocess.PIPE, text=True)
     root.after(10, update_timer)
 
 def update_timer():

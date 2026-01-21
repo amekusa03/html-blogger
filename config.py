@@ -2,6 +2,7 @@
 import os
 import sys
 import configparser
+import subprocess
 
 # --------------------------------------------------
 # configparser の宣言と config.ini の読み込み
@@ -149,3 +150,21 @@ if __name__ == '__main__':
     print(f'DELAY_SECONDS: {DELAY_SECONDS}')
     print(f'MAX_POSTS_PER_RUN: {MAX_POSTS_PER_RUN}')
 
+def open_file_with_default_app(filepath):
+    """ファイルパスを受け取り、OSの標準アプリで開く関数"""
+    if sys.platform == 'win32': # Windows
+        os.startfile(filepath)
+    elif sys.platform == 'darwin': # macOS
+        subprocess.call(['open', filepath])
+    elif sys.platform.startswith('linux'): # Linux
+        subprocess.call(['xdg-open', filepath])
+    else:
+        print(f"未対応のOS: {sys.platform}")
+
+def open_keywords_app():
+    """keywords.xml を標準アプリで開く"""
+    xml_path = os.path.abspath(XML_FILE)
+    if os.path.exists(xml_path):
+        open_file_with_default_app(xml_path)
+    else:
+        print(f'エラー: {xml_path} が見つかりません。')

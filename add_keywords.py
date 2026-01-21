@@ -4,6 +4,7 @@ import re
 import xml.etree.ElementTree as ET
 import shutil
 from datetime import datetime
+from pathlib import Path
 
 def load_keywords(xml_path):
     """XMLからキーワードを読み込む。返却値: (mast_keywords, hit_keywords, success_flag)"""
@@ -101,28 +102,29 @@ def process_html(file_path, mast_keywords, hit_keywords):
         return False
 
 def main():
-    xml_file = 'keywords.xml'
-    original_dir = 'reports'  
-    add_keywords_dir = 'addKeyword_upload'
+    script_dir = Path(__file__).parent.resolve()
+    xml_file = script_dir / 'keywords.xml'
+    original_dir = script_dir / 'reports'  
+    add_keywords_dir = script_dir / 'addKeyword_upload'
 
     # ✅ 出力ディレクトリをリセット
-    shutil.rmtree(add_keywords_dir, ignore_errors=True)
+    shutil.rmtree(str(add_keywords_dir), ignore_errors=True)
     try:
-        shutil.copytree(original_dir, add_keywords_dir)
+        shutil.copytree(str(original_dir), str(add_keywords_dir))
     except Exception as e:
         print(f"エラー: ディレクトリコピーに失敗しました: {e}")
         return
     
     # ✅ ファイル存在確認
-    if not os.path.exists(xml_file):
+    if not xml_file.exists():
         print(f"エラー: {xml_file} が見つかりません。")
         return
-    if not os.path.exists(add_keywords_dir):
+    if not add_keywords_dir.exists():
         print(f"エラー: {add_keywords_dir} ディレクトリが見つかりません。")
         return
 
     # ✅ キーワード読み込み（戻り値チェック）
-    mast_kws, hit_kws, success = load_keywords(xml_file)
+    mast_kws, hit_kws, success = load_keywords(str(xml_file))
     
     if not success:
         print("警告: キーワード読み込みに失敗しました。キーワード注入をスキップします。")
@@ -135,11 +137,11 @@ def main():
     processed_count = 0
     failed_count = 0
     
-    for entry in os.scandir(add_keywords_dir):
+    for entry in add_keywords_dir.iterdir():
         if entry.is_dir():
-            for file in os.scandir(entry.path):
-                if file.is_file() and file.name.lower().endswith(('.html', '.htm')):
-                    success = process_html(file.path, mast_kws, hit_kws)
+            for file in entry.iterdir():
+                if file.is_file() and file.suffix.lower() in ('.html', '.htm'):
+                    success = process_html(str(file), mast_kws, hit_kws)
                     if success:
                         processed_count += 1
                     else:

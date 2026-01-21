@@ -3,11 +3,13 @@ import os
 import re
 import uuid
 from datetime import datetime
+from pathlib import Path
 from bs4 import BeautifulSoup
 
 # --- 設定 ---
-INPUT_DIR = './ready_to_upload'     # cleaner.py の出力フォルダ
-OUTPUT_FILE = 'feed.atom'            # 生成される Atom フィードファイル
+SCRIPT_DIR = Path(__file__).parent.resolve()
+INPUT_DIR = SCRIPT_DIR / 'ready_to_upload'     # cleaner.py の出力フォルダ
+OUTPUT_FILE = SCRIPT_DIR / 'feed.atom'            # 生成される Atom フィードファイル
 BLOG_TITLE = 'My Blog'              # ブログタイトル
 BLOG_URL = 'https://example.blogspot.com'  # ブログのURL
 
@@ -30,10 +32,12 @@ def extract_metadata(html_text, filepath=None):
     # タイトル抽出：reports/ フォルダの元ファイルから優先的に取得
     metadata['title'] = ''
     if filepath:
-        reports_filepath = filepath.replace('./ready_to_upload', './reports').replace('.html', '.htm')
-        if os.path.exists(reports_filepath):
+        reports_filepath = Path(filepath).relative_to(SCRIPT_DIR)
+        reports_filepath = SCRIPT_DIR / 'reports' / reports_filepath.relative_to('ready_to_upload')
+        reports_filepath = reports_filepath.with_suffix('.htm')
+        if reports_filepath.exists():
             try:
-                with open(reports_filepath, 'r', encoding='utf-8') as f:
+                with open(str(reports_filepath), 'r', encoding='utf-8') as f:
                     reports_html = f.read()
                 title_match = re.search(r'<title>(.*?)</title>', reports_html, flags=re.IGNORECASE)
                 if title_match:
@@ -137,14 +141,14 @@ def generate_atom_feed():
     print(f"--- Atom フィード生成を開始します (対象フォルダ: {INPUT_DIR}) ---")
     
     # ready_to_upload フォルダ内を再帰的に走査
-    for root, dirs, files in os.walk(INPUT_DIR):
+    for root, dirs, files in os.walk(str(INPUT_DIR)):
         for filename in files:
             if filename.lower().endswith(('.htm', '.html')):
-                filepath = os.path.join(root, filename)
-                rel_path = os.path.relpath(filepath, INPUT_DIR)
-                folder_name = os.path.basename(os.path.dirname(filepath))
+                filepath = Path(root) / filename
+                rel_path = filepath.relative_to(INPUT_DIR)
+                folder_name = filepath.parent.name
                 
-                entry = html_to_atom_entry(filepath, folder_name)
+                entry = html_to_atom_entry(str(filepath), folder_name)
                 if entry:
                     entries.append(entry)
                     processed_count += 1
@@ -170,7 +174,7 @@ def generate_atom_feed():
     
     # ファイルに書き込み
     try:
-        with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+        with open(str(OUTPUT_FILE), 'w', encoding='utf-8') as f:
             f.write(atom_header)
             for entry in entries:
                 f.write(entry)

@@ -3,15 +3,17 @@ import pickle
 import time
 import re
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from bs4 import BeautifulSoup
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 
 # --- 設定 ---
+SCRIPT_DIR = Path(__file__).parent.resolve()
 BLOG_ID = 'あなたのブログID'
-MEDIA_MANAGER_FILE = 'Blogger メディア マネージャー_ddd.html'
-LOG_FILE = 'uploaded_atom_ids.txt'
+MEDIA_MANAGER_FILE = SCRIPT_DIR / 'Blogger メディア マネージャー_ddd.html'
+LOG_FILE = SCRIPT_DIR / 'uploaded_atom_ids.txt'
 SCOPES = ['https://www.googleapis.com/auth/blogger']
 DELAY_SECONDS = 15      # 安全のため15秒
 MAX_POSTS_PER_RUN = 5   # 最初は5件でテスト
@@ -24,13 +26,15 @@ SIZE_MAP = {
 
 def get_blogger_service():
     """Google Blogger API サービスオブジェクトを取得"""
-    if not os.path.exists('credentials.json'):
+    credentials_file = SCRIPT_DIR / 'credentials.json'
+    if not credentials_file.exists():
         raise FileNotFoundError('credentials.json が見つかりません。Google Cloud Console から OAuth2 認証情報をダウンロードしてください。')
     
     creds = None
-    if os.path.exists('token.pickle'):
+    token_file = SCRIPT_DIR / 'token.pickle'
+    if token_file.exists():
         try:
-            with open('token.pickle', 'rb') as token:
+            with open(str(token_file), 'rb') as token:
                 creds = pickle.load(token)
         except Exception as e:
             print(f'警告: token.pickle の読み込みエラー: {e}')
@@ -47,14 +51,14 @@ def get_blogger_service():
         
         if not creds:
             try:
-                flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+                flow = InstalledAppFlow.from_client_secrets_file(str(SCRIPT_DIR / 'credentials.json'), SCOPES)
                 creds = flow.run_local_server(port=0)
                 print('新規認証に成功しました。')
             except Exception as e:
                 raise Exception(f'Google 認証に失敗しました: {e}')
         
         try:
-            with open('token.pickle', 'wb') as token:
+            with open(str(SCRIPT_DIR / 'token.pickle'), 'wb') as token:
                 pickle.dump(creds, token)
         except Exception as e:
             print(f'警告: token.pickle の保存エラー: {e}')
@@ -63,10 +67,10 @@ def get_blogger_service():
 
 def load_media_mapping():
     mapping = {}
-    if not os.path.exists(MEDIA_MANAGER_FILE):
+    if not MEDIA_MANAGER_FILE.exists():
         print(f"警告: {MEDIA_MANAGER_FILE} が見つかりません。")
         return mapping
-    with open(MEDIA_MANAGER_FILE, 'r', encoding='utf-8') as f:
+    with open(str(MEDIA_MANAGER_FILE), 'r', encoding='utf-8') as f:
         soup = BeautifulSoup(f, 'html.parser')
         for a in soup.find_all('a', href=re.compile(r'googleusercontent\.com')):
             url = a['href']
@@ -123,7 +127,8 @@ def upload_from_ready_to_upload():
         raise ValueError('BLOG_ID が設定されていません。uploader.py の BLOG_ID 変数を設定してください。')
     
     # Atom ファイルの存在確認
-    if not os.path.exists('feed.atom'):
+    feed_file = SCRIPT_DIR / 'feed.atom'
+    if not feed_file.exists():
         raise FileNotFoundError('feed.atom が見つかりません。Blogger からエクスポートした Atom ファイルを配置してください。')
     
     media_map = load_media_mapping()
@@ -134,9 +139,9 @@ def upload_from_ready_to_upload():
         print(f'Blogger サービス初期化エラー: {e}')
         return
 
-    if os.path.exists(LOG_FILE):
+    if LOG_FILE.exists():
         try:
-            with open(LOG_FILE, 'r') as f:
+            with open(str(LOG_FILE), 'r') as f:
                 uploaded_ids = set(line.strip() for line in f)
         except Exception as e:
             print(f'ログファイル読み込みエラー: {e}')
@@ -148,7 +153,7 @@ def upload_from_ready_to_upload():
     # Atom ファイル解析
     ns = {'atom': 'http://www.w3.org/2005/Atom', 'blogger': 'http://schemas.google.com/blogger/2018'}
     try:
-        tree = ET.parse('feed.atom')
+        tree = ET.parse(str(feed_file))
     except ET.ParseError as e:
         print(f'Atom ファイルのパースエラー: {e}')
         return
@@ -198,7 +203,7 @@ def upload_from_ready_to_upload():
         try:
             response = service.posts().insert(blogId=BLOG_ID, body=body, isDraft=True).execute()
             try:
-                with open(LOG_FILE, 'a') as f:
+                with open(str(LOG_FILE), 'a') as f:
                     f.write(f"{eid}\n")
             except Exception as log_error:
                 print(f'警告: ログ記録エラー: {log_error}')

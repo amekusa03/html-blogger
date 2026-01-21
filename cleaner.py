@@ -3,11 +3,13 @@ import re
 import shutil
 import unicodedata
 import calendar
+from pathlib import Path
 
 # --- 設定 ---
-REPORTS_DIR = './reports'        # 元のレポートフォルダ群が入っている親フォルダ
-ADD_KEYWORDS_DIR = './addKeyword_upload'        # キーワード追加後のフォルダ群が入っている親フォルダ
-OUTPUT_DIR = './ready_to_upload' # 変換後の出力先フォルダ
+SCRIPT_DIR = Path(__file__).parent.resolve()
+REPORTS_DIR = SCRIPT_DIR / 'reports'        # 元のレポートフォルダ群が入っている親フォルダ
+ADD_KEYWORDS_DIR = SCRIPT_DIR / 'addKeyword_upload'        # キーワード追加後のフォルダ群が入っている親フォルダ
+OUTPUT_DIR = SCRIPT_DIR / 'ready_to_upload' # 変換後の出力先フォルダ
 
 def clean_html_for_blogger(html_text):
     
@@ -235,10 +237,9 @@ def clean_html_for_blogger(html_text):
     return html_text.strip()
 
 # --- 実行セクション ---
-if not os.path.exists(OUTPUT_DIR):
-    os.makedirs(OUTPUT_DIR)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-if os.path.exists(ADD_KEYWORDS_DIR):
+if ADD_KEYWORDS_DIR.exists():
     SOURCE_DIR = ADD_KEYWORDS_DIR
 else:   
     SOURCE_DIR = REPORTS_DIR
@@ -248,18 +249,17 @@ image_count = 0
 
 print(f"--- 変換処理を開始します (対象フォルダ: {SOURCE_DIR}) ---")
 
-for root, dirs, files in os.walk(SOURCE_DIR):
-    rel_path = os.path.relpath(root, SOURCE_DIR)
-    dest_dir = os.path.join(OUTPUT_DIR, rel_path)
-    if not os.path.exists(dest_dir):
-        os.makedirs(dest_dir)
+for root, dirs, files in os.walk(str(SOURCE_DIR)):
+    rel_path = os.path.relpath(root, str(SOURCE_DIR))
+    dest_dir = OUTPUT_DIR / rel_path if rel_path != '.' else OUTPUT_DIR
+    dest_dir.mkdir(parents=True, exist_ok=True)
 
     for filename in files:
-        src_path = os.path.join(root, filename)
+        src_path = Path(root) / filename
         if filename.lower().endswith(('.htm', '.html')):
             processed_count += 1
-            base_name = os.path.splitext(filename)[0]
-            dest_path = os.path.join(dest_dir, f"{base_name}.html")
+            base_name = src_path.stem
+            dest_path = dest_dir / f"{base_name}.html"
 
             content = None
             # 文字コードの判定
@@ -274,7 +274,7 @@ for root, dirs, files in os.walk(SOURCE_DIR):
             if content:
                 print(f"[{processed_count}] code {SOURCE_DIR}/{rel_path}/{filename}")
                 cleaned = clean_html_for_blogger(content)
-                with open(dest_path, 'w', encoding='utf-8') as f:
+                with open(str(dest_path), 'w', encoding='utf-8') as f:
                     f.write(cleaned)
                 print(f" -->HTML変換成功: {dest_path}")
             else:
@@ -283,8 +283,8 @@ for root, dirs, files in os.walk(SOURCE_DIR):
         else:
             # 画像ファイルなどはそのままコピー
             image_count += 1
-            dest_path = os.path.join(dest_dir, filename)
-            shutil.copy2(src_path, dest_path)
+            dest_path = dest_dir / filename
+            shutil.copy2(str(src_path), str(dest_path))
 
 print("-" * 30)
 print(f"【処理完了】")
