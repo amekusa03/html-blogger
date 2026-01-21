@@ -10,6 +10,7 @@ import datetime
 pythonproccess = [['キーワード作成', 'add_keywords.py'],
                 ['htmlクリーニング', 'cleaner.py'],
                 ['画像リンク設定', 'image_preparer.py'],
+                ['Atomフィード生成', 'convert_atom.py']
 #                ['ブロガー登録', 'uploader.py']]
                 ['ブロガー登録', '------.py']]
 root = Tkinter.Tk()
