@@ -70,7 +70,7 @@ def clean_html_for_blogger(html_text):
         # 正規表現で各パーツを分離して抽出
         # グループ1: 年, グループ2: 月, グループ3: 開始日, グループ4: 終了日(任意)
         unicode  = unicodedata.normalize('NFKC', html_text)
-        
+
         # まずは年を探す
         def extract_year():
             match = re.search(r'(\d{4})年', unicode)        
@@ -132,14 +132,25 @@ def clean_html_for_blogger(html_text):
         month = extract_month()
         start_day = extract_start_day()
         end_day = extract_end_day()
+        
+        # ✅ None チェック強化
+        if year is None or month is None:
+            year, month, start_day = None, None, None
+        
         if end_day is None:
             day = start_day
         else:
             day = end_day
-        if day is None:
-            day = calendar.monthrange(int(year), int(month))[1] # 月の最終日を取得
+        
+        # day が None の場合は月の最終日を使用
+        if day is None and year is not None and month is not None:
+            try:
+                day = str(calendar.monthrange(int(year), int(month))[1])
+            except (ValueError, TypeError):
+                day = None
             
-        if start_day is not None and month is not None and year is not None:
+        # すべての必須フィールドがそろった場合のみ日付を確定
+        if start_day is not None and month is not None and year is not None and day is not None:
             extracted_date = f"{year}-{month}-{day}"
 
     if extracted_date:

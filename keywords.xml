@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+    <!-- 必ず追加するキーワード -->
+    <Mastkeywords>
+        <word>Python</word>
+        <word>プログラミング</word>
+    </Mastkeywords>
+    <!-- 本文内にあれば追加するキーワード -->
+    <Hitkeywords>
+        <word>AI</word>
+        <word>機械学習</word>
+        <word>自動化</word>
+    </Hitkeywords>
+</root>

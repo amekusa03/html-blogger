@@ -3,7 +3,7 @@ import shutil
 
 # --- 設定 ---
 # 古い写真が入っているルートフォルダのパス
-SOURCE_PHOTOS_DIR = './old_photos'
+SOURCE_PHOTOS_DIR = './ready_to_upload'
 # リネーム後の画像を保存するフォルダ
 OUTPUT_DIR = './ready_to_upload_images'
 

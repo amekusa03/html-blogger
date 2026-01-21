@@ -10,7 +10,6 @@ from googleapiclient.discovery import build
 
 # --- 設定 ---
 BLOG_ID = 'あなたのブログID'
-ATOM_FILE = 'feed.atom'
 MEDIA_MANAGER_FILE = 'Blogger メディア マネージャー_ddd.html'
 LOG_FILE = 'uploaded_atom_ids.txt'
 SCOPES = ['https://www.googleapis.com/auth/blogger']
@@ -24,18 +23,42 @@ SIZE_MAP = {
 }
 
 def get_blogger_service():
+    """Google Blogger API サービスオブジェクトを取得"""
+    if not os.path.exists('credentials.json'):
+        raise FileNotFoundError('credentials.json が見つかりません。Google Cloud Console から OAuth2 認証情報をダウンロードしてください。')
+    
     creds = None
     if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token)
+        try:
+            with open('token.pickle', 'rb') as token:
+                creds = pickle.load(token)
+        except Exception as e:
+            print(f'警告: token.pickle の読み込みエラー: {e}')
+            creds = None
+    
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
+            try:
+                creds.refresh(Request())
+                print('トークンをリフレッシュしました。')
+            except Exception as e:
+                print(f'トークンリフレッシュエラー: {e}。新規認証を実施します。')
+                creds = None
+        
+        if not creds:
+            try:
+                flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+                creds = flow.run_local_server(port=0)
+                print('新規認証に成功しました。')
+            except Exception as e:
+                raise Exception(f'Google 認証に失敗しました: {e}')
+        
+        try:
+            with open('token.pickle', 'wb') as token:
+                pickle.dump(creds, token)
+        except Exception as e:
+            print(f'警告: token.pickle の保存エラー: {e}')
+    
     return build('blogger', 'v3', credentials=creds)
 
 def load_media_mapping():
@@ -83,8 +106,9 @@ def process_content(html, media_map):
     return str(soup)
 
 def extract_labels_from_content(content):
-    """本文内のコメントからラベルを抽出する"""
-    match = re.search(r'', content)
+    """本文内のメタコメント<!--labels:...-->からラベルを抽出する"""
+    # ラベルはHTMLコメント形式: <!--labels:label1,label2,label3-->
+    match = re.search(r'<!--\s*labels?\s*:\s*([^-]*?)\s*-->', content, re.IGNORECASE)
     if match:
         labels_str = match.group(1)
         # カンマで分割してリスト化、前後の空白を削除
@@ -92,17 +116,45 @@ def extract_labels_from_content(content):
     return []
 
 def upload_from_ready_to_upload():
+    """Atom形式のフィードファイルから記事を取得して Blogger にアップロード"""
+    
+    # BLOG_ID 設定チェック
+    if BLOG_ID == 'あなたのブログID':
+        raise ValueError('BLOG_ID が設定されていません。uploader.py の BLOG_ID 変数を設定してください。')
+    
+    # Atom ファイルの存在確認
+    if not os.path.exists('feed.atom'):
+        raise FileNotFoundError('feed.atom が見つかりません。Blogger からエクスポートした Atom ファイルを配置してください。')
+    
     media_map = load_media_mapping()
-    service = get_blogger_service()
+    
+    try:
+        service = get_blogger_service()
+    except Exception as e:
+        print(f'Blogger サービス初期化エラー: {e}')
+        return
 
     if os.path.exists(LOG_FILE):
-        with open(LOG_FILE, 'r') as f:
-            uploaded_ids = set(line.strip() for line in f)
+        try:
+            with open(LOG_FILE, 'r') as f:
+                uploaded_ids = set(line.strip() for line in f)
+        except Exception as e:
+            print(f'ログファイル読み込みエラー: {e}')
+            uploaded_ids = set()
     else:
         uploaded_ids = set()
+        print(f'新規ログファイルを作成します: {LOG_FILE}')
 
+    # Atom ファイル解析
     ns = {'atom': 'http://www.w3.org/2005/Atom', 'blogger': 'http://schemas.google.com/blogger/2018'}
-    tree = ET.parse(ATOM_FILE)
+    try:
+        tree = ET.parse('feed.atom')
+    except ET.ParseError as e:
+        print(f'Atom ファイルのパースエラー: {e}')
+        return
+    except Exception as e:
+        print(f'予期しないエラー: {e}')
+        return
     entries = tree.getroot().findall('atom:entry', ns)
 
     count = 0
@@ -144,15 +196,20 @@ def upload_from_ready_to_upload():
         }
     
         try:
-            service.posts().insert(blogId=BLOG_ID, body=body, isDraft=True).execute()
-            with open(LOG_FILE, 'a') as f:
-                f.write(f"{eid}\n")
+            response = service.posts().insert(blogId=BLOG_ID, body=body, isDraft=True).execute()
+            try:
+                with open(LOG_FILE, 'a') as f:
+                    f.write(f"{eid}\n")
+            except Exception as log_error:
+                print(f'警告: ログ記録エラー: {log_error}')
             count += 1
-            print(f"[{count}] 成功: {title if title else '(タイトルなし)'}")
+            post_id = response.get('id', 'N/A')
+            print(f"[{count}] 成功 (ID: {post_id}): {title if title else '(タイトルなし)'}")
             time.sleep(DELAY_SECONDS)
         except Exception as e:
-            print(f"エラー発生: {e}")
+            print(f"エラー発生 (タイトル: {title}): {e}")
+            print('処理を中止します。')
             break
 
 if __name__ == '__main__':
-    upload_from_atom()
+    upload_from_ready_to_upload()
