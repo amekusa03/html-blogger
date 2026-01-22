@@ -3,13 +3,15 @@ import re
 import shutil
 import unicodedata
 import calendar
+import sys
 from pathlib import Path
+from config import get_config
 
 # --- 設定 ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
-REPORTS_DIR = SCRIPT_DIR / 'reports'        # 元のレポートフォルダ群が入っている親フォルダ
-ADD_KEYWORDS_DIR = SCRIPT_DIR / 'addKeyword_upload'        # キーワード追加後のフォルダ群が入っている親フォルダ
-OUTPUT_DIR = SCRIPT_DIR / 'ready_to_upload' # 変換後の出力先フォルダ
+REPORTS_DIR = SCRIPT_DIR / get_config('CLEANER', 'REPORTS_DIR')        # 元のレポートフォルダ群が入っている親フォルダ
+ADD_KEYWORDS_DIR = SCRIPT_DIR / get_config('CLEANER', 'ADD_KEYWORDS_DIR')        # キーワード追加後のフォルダ群が入っている親フォルダ
+OUTPUT_DIR = SCRIPT_DIR / get_config('CLEANER', 'OUTPUT_DIR') # 変換後の出力先フォルダ
 
 def clean_html_for_blogger(html_text):
     
@@ -204,6 +206,18 @@ def clean_html_for_blogger(html_text):
 
     # 9. テーブルやリストなどの構造タグの後にも改行を入れるとソースが見やすくなります
     html_text = re.sub(r'(</td>|</tr>|</table>|</h1>|</h2>|</h3>|</li>)', r'\1\n', html_text, flags=re.IGNORECASE)
+    
+    # 【重大エラーチェック】コンテンツ削除検出
+    # クリーニング後のテキストサイズが元の70%以下の場合は警告＋中断
+    original_length = len(content)
+    cleaned_preview = re.sub(r'<[^>]*>', '', html_text)  # テキスト部分のみ抽出
+    cleaned_length = len(cleaned_preview)
+    
+    # 本文が極端に削られていないかチェック
+    if original_length > 100 and cleaned_length < original_length * 0.3:
+        error_msg = f"エラー: HTML クリーニング時にコンテンツが過度に削除されました。\n元: {original_length}文字 → 削除後: {cleaned_length}文字\n正規表現が過度に積極的な可能性があります。サンプルHTMLで検証してください。"
+        print(error_msg)
+        sys.exit(1)
     
     # 10. 画像処理 (figcaptionの修正)
     def replace_img(match):

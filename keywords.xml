@@ -2,13 +2,16 @@
 <root>
     <!-- 必ず追加するキーワード -->
     <Mastkeywords>
-        <word>Python</word>
-        <word>プログラミング</word>
+        <word>べっしー</word>
+        <word>べっしーの気ままな所</word>
     </Mastkeywords>
     <!-- 本文内にあれば追加するキーワード -->
     <Hitkeywords>
-        <word>AI</word>
-        <word>機械学習</word>
-        <word>自動化</word>
+        <word>カヤック</word>
+        <word>登山</word>
+        <word>キャンプ</word>
+        <word>島</word>
+        <word>ダイビング</word>
+        <word>列車</word>
     </Hitkeywords>
 </root>

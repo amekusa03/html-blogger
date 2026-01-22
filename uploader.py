@@ -2,6 +2,7 @@ import os
 import pickle
 import time
 import re
+import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from bs4 import BeautifulSoup
@@ -66,6 +67,7 @@ def get_blogger_service():
     return build('blogger', 'v3', credentials=creds)
 
 def load_media_mapping():
+    # メディアマネージャーファイルから画像URLをマッピング
     mapping = {}
     if not MEDIA_MANAGER_FILE.exists():
         print(f"警告: {MEDIA_MANAGER_FILE} が見つかりません。")
@@ -76,6 +78,7 @@ def load_media_mapping():
             url = a['href']
             filename = url.split('/')[-1]
             mapping[filename] = url
+    
     return mapping
 
 def resize_logic(w, h):
@@ -89,6 +92,9 @@ def resize_logic(w, h):
 def process_content(html, media_map):
     """本文の加工：URL置換とリサイズのみ（タイトル挿入は行わない）"""
     soup = BeautifulSoup(html, 'html.parser')
+    
+    # マッピング失敗したファイルを記録
+    unmapped_files = []
 
     # 画像処理 (仕様2およびサイズ調整)
     for img in soup.find_all('img'):
@@ -97,6 +103,10 @@ def process_content(html, media_map):
         old_filename = src_attr.split('/')[-1]
         if old_filename in media_map:
             img['src'] = media_map[old_filename]
+        else:
+            # マッピングできないファイルを記録
+            if old_filename:
+                unmapped_files.append(old_filename)
 
         # 2. リサイズ (仕様1)
         try:
@@ -106,6 +116,11 @@ def process_content(html, media_map):
                 img['width'], img['height'] = str(new_w), str(new_h)
         except:
             pass
+
+    # マッピング失敗した画像に対して警告を出力
+    if unmapped_files:
+        for filename in unmapped_files:
+            print(f"警告: 画像URLがマッピングされません: {filename}")
 
     return str(soup)
 
@@ -122,9 +137,23 @@ def extract_labels_from_content(content):
 def upload_from_ready_to_upload():
     """Atom形式のフィードファイルから記事を取得して Blogger にアップロード"""
     
-    # BLOG_ID 設定チェック
-    if BLOG_ID == 'あなたのブログID':
-        raise ValueError('BLOG_ID が設定されていません。uploader.py の BLOG_ID 変数を設定してください。')
+    # 【重大エラーチェック】BLOG_ID 設定確認
+    if BLOG_ID == 'あなたのブログID' or not BLOG_ID or BLOG_ID.strip() == '':
+        error_msg = "エラー: BLOG_ID が設定されていません。uploader.py の BLOG_ID 変数を設定してください。"
+        print(error_msg)
+        sys.exit(1)
+    
+    # 【重大エラーチェック】認証情報の事前確認
+    try:
+        service = get_blogger_service()
+    except FileNotFoundError as e:
+        error_msg = f"エラー: {e}"
+        print(error_msg)
+        sys.exit(1)
+    except Exception as e:
+        error_msg = f"エラー: Google認証に失敗しました: {e}\n認証情報（credentials.json）が有効か確認してください。"
+        print(error_msg)
+        sys.exit(1)
     
     # Atom ファイルの存在確認
     feed_file = SCRIPT_DIR / 'feed.atom'
@@ -133,12 +162,6 @@ def upload_from_ready_to_upload():
     
     media_map = load_media_mapping()
     
-    try:
-        service = get_blogger_service()
-    except Exception as e:
-        print(f'Blogger サービス初期化エラー: {e}')
-        return
-
     if LOG_FILE.exists():
         try:
             with open(str(LOG_FILE), 'r') as f:
@@ -163,6 +186,7 @@ def upload_from_ready_to_upload():
     entries = tree.getroot().findall('atom:entry', ns)
 
     count = 0
+    error_count = 0
     for entry in entries:
         if count >= MAX_POSTS_PER_RUN: break
 
@@ -212,9 +236,13 @@ def upload_from_ready_to_upload():
             print(f"[{count}] 成功 (ID: {post_id}): {title if title else '(タイトルなし)'}")
             time.sleep(DELAY_SECONDS)
         except Exception as e:
-            print(f"エラー発生 (タイトル: {title}): {e}")
-            print('処理を中止します。')
-            break
+            error_count += 1
+            error_msg = f"エラー発生 (タイトル: {title}): {e}"
+            print(error_msg)
+            # 【重大エラー】アップロード失敗時は明示的に中断
+            if error_count > 0:
+                print("処理を中止します。")
+                sys.exit(1)
 
 if __name__ == '__main__':
     upload_from_ready_to_upload()

@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 import shutil
 from datetime import datetime
 from pathlib import Path
+from config import get_config
 
 def load_keywords(xml_path):
     """XMLからキーワードを読み込む。返却値: (mast_keywords, hit_keywords, success_flag)"""
@@ -103,9 +104,9 @@ def process_html(file_path, mast_keywords, hit_keywords):
 
 def main():
     script_dir = Path(__file__).parent.resolve()
-    xml_file = script_dir / 'keywords.xml'
-    original_dir = script_dir / 'reports'  
-    add_keywords_dir = script_dir / 'addKeyword_upload'
+    xml_file = script_dir / get_config('ADD_KEYWORDS', 'XML_FILE')
+    original_dir = script_dir / get_config('ADD_KEYWORDS', 'ORIGINAL_DIR')
+    add_keywords_dir = script_dir / get_config('ADD_KEYWORDS', 'ADD_KEYWORDS_DIR')
 
     # ✅ 出力ディレクトリをリセット
     shutil.rmtree(str(add_keywords_dir), ignore_errors=True)

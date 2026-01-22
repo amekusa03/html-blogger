@@ -32,6 +32,7 @@ DEFAULTS = {
     'CLEANER_OUTPUT_DIR': './ready_to_upload',
     'SOURCE_PHOTOS_DIR': './ready_to_upload',
     'IMAGE_PREPARER_OUTPUT_DIR': './ready_to_upload_images',
+    'BLOGGER_SIGNIN_URL': 'https://www.blogger.com/go/signin',
     'MEDIA_MANAGER_URL': 'http://blogger.com/mediamanager',
     'CONVERT_ATOM_INPUT_DIR': './ready_to_upload',
     'OUTPUT_FILE': 'feed.atom',
@@ -83,6 +84,10 @@ ADD_KEYWORDS_DIR = get_config('ADD_KEYWORDS', 'ADD_KEYWORDS_DIR', DEFAULTS.get('
 REPORTS_DIR = get_config('CLEANER', 'REPORTS_DIR', DEFAULTS.get('REPORTS_DIR'))
 CLEANER_ADD_KEYWORDS_DIR = get_config('CLEANER', 'ADD_KEYWORDS_DIR', ADD_KEYWORDS_DIR)
 CLEANER_OUTPUT_DIR = get_config('CLEANER', 'OUTPUT_DIR', DEFAULTS.get('CLEANER_OUTPUT_DIR'))
+
+# ---- OPEN_BLOGGER 用設定 ---
+BLOGGER_SIGNIN_URL = get_config('OPEN_BLOGGER', 'BLOGGER_SIGNIN_URL', DEFAULTS.get('BLOGGER_SIGNIN_URL'))
+MEDIA_MANAGER_URL = get_config('OPEN_BLOGGER', 'MEDIA_MANAGER_URL', DEFAULTS.get('MEDIA_MANAGER_URL'))
 
 # --- image_preparer.py 用設定 ---
 SOURCE_PHOTOS_DIR = get_config('IMAGE_PREPARER', 'SOURCE_PHOTOS_DIR', DEFAULTS.get('SOURCE_PHOTOS_DIR'))
@@ -168,3 +173,11 @@ def open_keywords_app():
         open_file_with_default_app(xml_path)
     else:
         print(f'エラー: {xml_path} が見つかりません。')
+
+def open_config_file():
+    """config.ini を標準アプリで開く"""
+    config_path = os.path.abspath(CONFIG_FILE)
+    if os.path.exists(config_path):
+        open_file_with_default_app(config_path)
+    else:
+        print(f'エラー: {config_path} が見つかりません。')  
