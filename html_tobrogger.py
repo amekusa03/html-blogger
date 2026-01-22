@@ -1,28 +1,101 @@
 # !/usr/bin/env python
 # -*- coding: utf8 -*-
-# https://qiita.com/nnahito/items/ad1428a30738b3d93762
-# https://www.google.com/search?q=vscode+python+print%E3%82%92%E5%88%A5%E3%81%AEPython%E3%81%A7%E5%8F%96%E5%BE%97&sca_esv=d0849dc9e7ce7768&sxsrf=ANbL-n7bJ4LbOf-2BmMssNTyC0T97r3waw%3A1768968337226&ei=kVBwabnBDd3i1e8PqdnYmAU&ved=0ahUKEwj5ze_K4JuSAxVdcfUHHaksFlMQ4dUDCBE&uact=5&oq=vscode+python+print%E3%82%92%E5%88%A5%E3%81%AEPython%E3%81%A7%E5%8F%96%E5%BE%97&gs_lp=Egxnd3Mtd2l6LXNlcnAiK3ZzY29kZSBweXRob24gcHJpbnTjgpLliKXjga5QeXRob27jgaflj5blvpcyBRAAGO8FMgUQABjvBTIIEAAYgAQYogQyCBAAGIkFGKIESIuVAVDPDFjxigFwAXgBkAEAmAGJAaABmRSqAQQ3LjE4uAEDyAEA-AEBmAIaoAKHFsICChAAGEcY1gQYsAPCAgQQIxgnwgIGECEYKhgKwgIGECEYChgqmAMAiAYBkAYKkgcEMy4yM6AHiiuyBwQyLjIzuAfvFcIHCDItMjQuMS4xyAecAYAIAQ&sclient=gws-wiz-serp
 import sys
 import tkinter as Tkinter
+from tkinter import messagebox
 import subprocess
 import datetime
+import platform
 from pathlib import Path
 
+# --- 設定ファイル編集用関数 ---
+def open_config_file():
+    """config.iniを標準アプリで開く"""
+    config_file = Path(__file__).parent / 'config.ini'
+    if not config_file.exists():
+        messagebox.showerror("エラー", f"{config_file} が見つかりません")
+        return
+    
+    try:
+        system = platform.system()
+        if system == 'Darwin':  # macOS
+            subprocess.Popen(['open', str(config_file)])
+        elif system == 'Windows':
+            subprocess.Popen(['start', str(config_file)], shell=True)
+        else:  # Linux
+            subprocess.Popen(['xdg-open', str(config_file)])
+        print(f"config.iniを開きました: {config_file}")
+    except Exception as e:
+        messagebox.showerror("エラー", f"ファイルを開く際にエラーが発生しました: {e}")
+
+def open_keywords_file():
+    """keywords.xmlを標準アプリで開く"""
+    keywords_file = Path(__file__).parent / 'keywords.xml'
+    if not keywords_file.exists():
+        messagebox.showerror("エラー", f"{keywords_file} が見つかりません")
+        return
+    
+    try:
+        system = platform.system()
+        if system == 'Darwin':  # macOS
+            subprocess.Popen(['open', str(keywords_file)])
+        elif system == 'Windows':
+            subprocess.Popen(['start', str(keywords_file)], shell=True)
+        else:  # Linux
+            subprocess.Popen(['xdg-open', str(keywords_file)])
+        print(f"keywords.xmlを開きました: {keywords_file}")
+    except Exception as e:
+        messagebox.showerror("エラー", f"ファイルを開く際にエラーが発生しました: {e}")
+
+def open_georss_file():
+    """georss_point.xmlを標準アプリで開く"""
+    georss_file = Path(__file__).parent / 'georss_point.xml'
+    if not georss_file.exists():
+        messagebox.showerror("エラー", f"{georss_file} が見つかりません")
+        return
+    
+    try:
+        system = platform.system()
+        if system == 'Darwin':  # macOS
+            subprocess.Popen(['open', str(georss_file)])
+        elif system == 'Windows':
+            subprocess.Popen(['start', str(georss_file)], shell=True)
+        else:  # Linux
+            subprocess.Popen(['xdg-open', str(georss_file)])
+        print(f"georss_point.xmlを開きました: {georss_file}")
+    except Exception as e:
+        messagebox.showerror("エラー", f"ファイルを開く際にエラーが発生しました: {e}")
+
 pythonproccess = [['キーワード作成', 'add_keywords.py'],
+                ['位置情報追加', 'add_georss_point.py'],
                 ['htmlクリーニング', 'cleaner.py'],
+                ['ブログURL取得', 'open_blogger.py'],
                 ['画像リンク設定', 'image_preparer.py'],
-                ['Atomフィード生成', 'convert_atom.py']
-#                ['ブロガー登録', 'uploader.py']]
-                ['ブロガー登録', '------.py']]
+                ['Atomフィード生成', 'convert_atom.py']]
+
 root = Tkinter.Tk()
 root.title(u"htmlからBloggerアップロード")
 root.geometry("640x480")
 
 process = None
 progress = 0
-#
+
+# --- メニューバー作成 ---
+menubar = Tkinter.Menu(root)
+root.config(menu=menubar)
+
+# ファイルメニュー
+file_menu = Tkinter.Menu(menubar, tearoff=0)
+menubar.add_cascade(label="ファイル", menu=file_menu)
+
+# 設定ファイル編集サブメニュー
+config_edit_menu = Tkinter.Menu(file_menu, tearoff=0)
+file_menu.add_cascade(label="設定ファイル編集", menu=config_edit_menu)
+config_edit_menu.add_command(label="config.ini", command=open_config_file)
+config_edit_menu.add_command(label="keywords.xml", command=open_keywords_file)
+config_edit_menu.add_command(label="georss_point.xml", command=open_georss_file)
+
 # ボタンが押されるとここが呼び出される
-#
 def StartEntryValue(event):
     btn_text = event.widget.cget("text")
     print(f"ボタン押下: {btn_text}")
@@ -36,51 +109,36 @@ def StartEntryValue(event):
     root.after(10, update_timer)
 
 def update_timer():
-    # 1. 動作中であることを表示
-    #label.config(text="処理中")     
-
-    # 2. プロセスの終了確認
+    # プロセスの終了確認
     global process
     if process is None:
-    #    root.after(10, update_timer)
-        return True  # タイマー継続などのフラグ 
+        return True
     return_code = process.poll()
 
-    # 3. 標準出力を読み取る（非ブロッキング）
+    # 標準出力を読み取る（非ブロッキング）
     try:
-        # 読み込める分だけすべて読み込む
         output = process.stdout.read()
         if output:
             text_widget.insert(Tkinter.END, output.strip() + "\n")
             text_widget.see(Tkinter.END)
     except Exception:
-        # 読み込むデータがない場合はここを通る
         pass
 
-    # 4. 終了判定
+    # 終了判定
     if return_code is not None:
-        #label.config(text="クリーニング完了" + str(return_code))
-        return False  # タイマー停止などのフラグ
+        return False
     
-    # 10ミリ秒（1秒）後に再度この関数(update_timer)を呼び出す
+    # 10ミリ秒後に再度この関数を呼び出す
     root.after(10, update_timer)
     return True
 
-
-    
 # ボタン
-# 1. ボタンを左上に並べるためのフレーム
 header_frame = Tkinter.Frame(root)
 header_frame.pack(side="top", anchor="nw", padx=5, pady=5)
 for item in pythonproccess:
-    Button = Tkinter.Button(header_frame,text=item[0])
-    Button.bind("<Button-1>",StartEntryValue)
+    Button = Tkinter.Button(header_frame, text=item[0])
+    Button.bind("<Button-1>", StartEntryValue)
     Button.pack(side="left", padx=5, pady=2)   
-
-# 時間を表示するラベル
-# label = Tkinter.Label(root, font=("Helvetica", 30))
-# label.pack(pady=20)
-# label.pack(anchor="w")
 
 # ログ表示用テキストウィジェット
 text_widget = Tkinter.Text(root, height=15, width=100)
@@ -92,5 +150,5 @@ update_timer()
 root.mainloop()
 
 if process is not None:
-    rc = process.wait() # プロセスの終了を待機
+    rc = process.wait()
     sys.exit(rc)  

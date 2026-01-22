@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 位置情報定義ファイル -->
+<!-- HTML内で見つかった地域名に対応する緯度経度を定義します -->
+<root>
+    <location>
+        <name>東京</name>
+        <latitude>35.6812</latitude>
+        <longitude>139.7671</longitude>
+    </location>
+    <location>
+        <name>京都</name>
+        <latitude>35.0116</latitude>
+        <longitude>135.7681</longitude>
+    </location>
+    <location>
+        <name>大阪</name>
+        <latitude>34.6937</latitude>
+        <longitude>135.5023</longitude>
+    </location>
+    <location>
+        <name>富士山</name>
+        <latitude>35.3606</latitude>
+        <longitude>138.7274</longitude>
+    </location>
+    <location>
+        <name>沖縄</name>
+        <latitude>26.2128</latitude>
+        <longitude>127.6804</longitude>
+    </location>
+</root>
