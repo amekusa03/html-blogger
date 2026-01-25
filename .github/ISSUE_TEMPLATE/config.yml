@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📚 ドキュメント / Documentation
+    url: https://github.com/amekusa03/html-blogger/tree/main/docs
+    about: セットアップ、トラブルシューティング、使い方ガイド
+  - name: 💬 Discussions（質問・議論）
+    url: https://github.com/amekusa03/html-blogger/discussions
+    about: 質問や機能についての議論はこちらで
