@@ -2,8 +2,8 @@
 <root>
     <!-- 必ず追加するキーワード -->
     <Mastkeywords>
-        <word>べっしー</word>
-        <word>べっしーの気ままな所</word>
+        <word>旅行記</word>
+        <word>アウトドア</word>
     </Mastkeywords>
     <!-- 本文内にあれば追加するキーワード -->
     <Hitkeywords>

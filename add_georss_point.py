@@ -67,7 +67,7 @@ def save_to_georss_cache(xml_file, location_name, latitude="", longitude=""):
     try:
         # XMLファイルが存在しない場合は新規作成
         if not xml_file.exists():
-            root = ET.Element('locations')
+            root = ET.Element('root')
             tree = ET.ElementTree(root)
         else:
             tree = ET.parse(str(xml_file))
@@ -81,9 +81,12 @@ def save_to_georss_cache(xml_file, location_name, latitude="", longitude=""):
                 lat_elem = location.find('latitude')
                 lon_elem = location.find('longitude')
                 if lat_elem is not None:
-                    lat_elem.text = str(latitude)
+                    lat_elem.text = str(latitude) if latitude else ""
                 if lon_elem is not None:
-                    lon_elem.text = str(longitude)
+                    lon_elem.text = str(longitude) if longitude else ""
+                
+                # インデント整形して保存
+                indent_xml(root)
                 tree.write(str(xml_file), encoding='utf-8', xml_declaration=True)
                 return
         
@@ -92,14 +95,36 @@ def save_to_georss_cache(xml_file, location_name, latitude="", longitude=""):
         name_elem = ET.SubElement(location_elem, 'name')
         name_elem.text = location_name
         lat_elem = ET.SubElement(location_elem, 'latitude')
-        lat_elem.text = str(latitude)
+        lat_elem.text = str(latitude) if latitude else ""
         lon_elem = ET.SubElement(location_elem, 'longitude')
-        lon_elem.text = str(longitude)
+        lon_elem.text = str(longitude) if longitude else ""
         
+        # インデント整形して保存
+        indent_xml(root)
         tree.write(str(xml_file), encoding='utf-8', xml_declaration=True)
         print(f"  -> georss_point.xmlに保存しました: {location_name}")
     except Exception as e:
         print(f"XML保存エラー: {e}")
+
+
+def indent_xml(elem, level=0):
+    """
+    XMLツリーにインデントと改行を追加する
+    """
+    indent = "\n" + "    " * level
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = indent + "    "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = indent
+        for child in elem:
+            indent_xml(child, level + 1)
+        if not child.tail or not child.tail.strip():
+            child.tail = indent
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = indent
+
 
 def find_location_in_html(html_text, geo_data):
     """
@@ -146,7 +171,7 @@ def find_location_in_html(html_text, geo_data):
                 if split_name not in spot_candidates:
                     spot_candidates.append(split_name)
                     print(f"タイトル分割: '{name}' -> '{split_name}'")
-            
+    
     # h1～h6タグから取得（記号で分割）
     for level in range(1, 7):
         for header in soup.find_all(f'h{level}'):
@@ -157,7 +182,7 @@ def find_location_in_html(html_text, geo_data):
                     if split_name not in spot_candidates:
                         spot_candidates.append(split_name)
                         print(f"見出し{level}分割: '{name}' -> '{split_name}'")
-                       
+    
     # 1. テキストから地名を抽出（Janomeを使用、日本語のみ）
     html_text_for_tokenize = re.sub(r'[^\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\s]', '', html_text_normalized)
     html_text_for_tokenize = html_text_for_tokenize.replace('　', '')
@@ -172,7 +197,7 @@ def find_location_in_html(html_text, geo_data):
             if token.surface not in spot_candidates:
                 spot_candidates.append(token.surface)
                 print(f"Janome抽出: {token.surface} ({pos})")
-            
+    
     # 画像のalt属性から取得（記号で分割）
     for img in soup.find_all('img', alt=True):
         name = img['alt'].strip()
@@ -182,7 +207,7 @@ def find_location_in_html(html_text, geo_data):
                 if split_name not in spot_candidates:
                     spot_candidates.append(split_name)
                     print(f"alt属性分割: '{name}' -> '{split_name}'")
-            
+    
     # 特定のフォントサイズ指定があるテキストを取得
     for font in soup.find_all('font', size="-1"):
         name = font.get_text(strip=True)
@@ -251,7 +276,7 @@ def find_location_in_html(html_text, geo_data):
             
             # APIへの負荷軽減のため1.1秒待機（Nominatimの利用規約）
             time.sleep(1.1)
-            
+        
         except GeocoderTimedOut:
             print(f"タイムアウトしました: {spot}")
             # タイムアウトした場合も空文字列で保存

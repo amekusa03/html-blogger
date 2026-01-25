@@ -1,8 +1,11 @@
 # Blogger HTMLアップロードパイプライン - AI開発ガイド
 
-## アーキテクチャ概要
-**ローカルデスクトップツール**で、HTMLレポートをBloggerと互換性のあるポストに変換し、自動画像処理を行う。Tkinter GUI (`html_tobrogger.py`)から起動される8つの連続ステージから構成される：
+## プロジェクト概要
+**HTMLtoBlogger** は、HTML4.0形式で作成された大量のWebページをGoogle Bloggerに移行・投稿するためのローカルデスクトップツールです。Tkinter GUI (`html_tobrogger.py`)から起動される8つの連続ステージで構成され、キーワード抽出、位置情報タグ付け、HTMLクリーニング、画像処理、自動アップロードを実行します。
 
+## アーキテクチャ概要
+
+### データフロー
 ```
 reports/          → work/                                      → image/             → ready_load/  → finished/    → Blogger
   (ユーザー入力)     (キーワード注入、位置追加、EXIF削除等)      (ユーザーが配置)    (アップロード待機)  (完了)       (Google API)
@@ -123,6 +126,20 @@ reports/          → work/                                      → image/     
 
 ## 一般的なワークフロー
 
+### 環境セットアップ
+```bash
+# 仮想環境作成・有効化
+python3 -m venv venv
+source venv/bin/activate  # Linux/Mac
+# venv\Scripts\activate   # Windows
+
+# 依存パッケージインストール
+pip install -r requirements.txt
+
+# Google Cloud認証設定（詳細は docs/SETUP.md 参照）
+# credentials.json をプロジェクトルートに配置
+```
+
 ### フルパイプライン実行
 ```bash
 # GUI から実行（メインエントリーポイント）
@@ -144,6 +161,7 @@ python uploader.py          # Blogger API へのアップロード
 - 中間フォルダを使用：`work/`（各処理後の出力）
 - 問題を分離するため、次のステージ実行前に出力を確認
 - GUI統合：`html_tobrogger.py`の`pythonproccess`リスト（各スクリプトとラベルのペア）で実行順序を定義
+- **テスト推奨**: 最初は小規模データ（1-2ファイル）で動作確認、`config.ini`の`MAX_POSTS_PER_RUN = 1`に設定して1件ずつ投稿テスト
 
 ## 開発ノート
 
@@ -159,11 +177,26 @@ python uploader.py          # Blogger API へのアップロード
 - **バックアップ失敗** (add_keywords.py): 警告で継続、全プロセスを失敗させない
 
 ### GUIアーキテクチャ (html_tobrogger.py)
-- シングルスレッドTkinterで`subprocess.Popen()`経由で子プロセスを順次起動
-- `process.stdout.read()`で非ブロッキングループ内（10ms ポーリング `root.after(10, update_timer)`）に出力をキャプチャ
-- プロセス間通信なし；フォルダ状態でのデータフローに依存：`pythonproccess = [['ラベル', 'スクリプト名'], ...]`
-- メニューバー機能：`config.ini`、`keywords.xml`、`georss_point.xml`を標準アプリで開く（クロスプラットフォーム対応）
-- 各ボタンは`pythonproccess`リスト内の1つのスクリプトに対応
+- **GUI実装**: シングルスレッドTkinterで`subprocess.Popen()`経由で子プロセスを順次起動
+- **出力キャプチャ**: `process.stdout.read()`で非ブロッキングループ内（10ms ポーリング `root.after(10, update_timer)`）に出力をキャプチャ
+- **処理フロー定義**: プロセス間通信なし；フォルダ状態でのデータフローに依存
+  ```python
+  pythonproccess = [['キーワード作成', 'add_keywords.py'],
+                    ['位置情報追加', 'add_georss_point.py'],
+                    ['htmlクリーニング', 'cleaner.py'],
+                    ['画像位置情報削除＆ウォーターマーク追加', 'phot_exif_watemark.py']]
+  pythonproccess_step5 = [['画像リンク設定', 'image_preparer.py'],
+                          ['Atomフィード生成', 'convert_atom.py']]
+  pythonproccess_upload = [['アップロード', 'uploader.py']]
+  ```
+- **メニューバー機能**: `config.ini`、`keywords.xml`、`georss_point.xml`を標準アプリで開く（クロスプラットフォーム対応）
+- **操作ボタン構成**:
+  1. **操作１**: `reports/` フォルダを開く
+  2. **操作２**: メディアマネージャー（`media-man/`）フォルダを開く  
+  3. **操作３**: メイン処理実行（`pythonproccess`リスト）
+  4. **操作４**: Bloggerメディアマネージャーをブラウザで開く + BLOG_ID抽出
+  5. **操作５**: 画像リンク設定 & Atomフィード生成（`pythonproccess_step5`リスト）
+  6. **操作６**: Bloggerへアップロード（`pythonproccess_upload`）
 - **起動時警告（仕様変更D）**: `token.pickle` がない場合は警告を出す（ただし操作は続行可能）
 - **フォルダクリア警告（仕様変更D）**: ユーザーが「フォルダを開く」ボタンを押時に、`reports/`、`work/`、`image/`、`ready_load/` に ファイルがあれば確認ダイアログを表示。OK で全削除（`*.xml`、`finished/` は除外）
 
