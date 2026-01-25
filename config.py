@@ -27,14 +27,9 @@ except Exception as e:
 DEFAULTS = {
     'XML_FILE': 'keywords.xml',
     'ORIGINAL_DIR': './reports',
-    'ADD_KEYWORDS_DIR': './addKeyword_upload',
-    'REPORTS_DIR': './reports',
-    'CLEANER_OUTPUT_DIR': './ready_to_upload',
-    'SOURCE_PHOTOS_DIR': './ready_to_upload',
-    'IMAGE_PREPARER_OUTPUT_DIR': './ready_to_upload_images',
+    'WORKING_DIR': './working',
     'BLOGGER_SIGNIN_URL': 'https://www.blogger.com/go/signin',
     'MEDIA_MANAGER_URL': 'http://blogger.com/mediamanager',
-    'CONVERT_ATOM_INPUT_DIR': './ready_to_upload',
     'OUTPUT_FILE': 'feed.atom',
     'BLOG_TITLE': 'My Blog',
     'BLOG_URL': 'https://example.blogspot.com',
@@ -75,31 +70,33 @@ def get_config(section, key, default=None):
 # config.ini から値取得
 # --------------------------------------------------
 
+# --- 共通設定 ---
+ORIGINAL_DIR = get_config('PUBULIC', 'ORIGINAL_DIR', DEFAULTS.get('ORIGINAL_DIR'))
+WORKING_DIR = get_config('PUBULIC', 'WORKING_DIR', DEFAULTS.get('WORKING_DIR'))
+
 # --- add_keywords.py 用設定 ---
 XML_FILE = get_config('ADD_KEYWORDS', 'XML_FILE', DEFAULTS.get('XML_FILE'))
-ORIGINAL_DIR = get_config('ADD_KEYWORDS', 'ORIGINAL_DIR', DEFAULTS.get('ORIGINAL_DIR'))
-ADD_KEYWORDS_DIR = get_config('ADD_KEYWORDS', 'ADD_KEYWORDS_DIR', DEFAULTS.get('ADD_KEYWORDS_DIR'))
+#ORIGINAL_DIR = get_config('ADD_KEYWORDS', 'ORIGINAL_DIR', DEFAULTS.get('ORIGINAL_DIR'))
+#ADD_KEYWORDS_DIR = get_config('ADD_KEYWORDS', 'ADD_KEYWORDS_DIR', DEFAULTS.get('ADD_KEYWORDS_DIR'))
 
 # --- cleaner.py 用設定 ---
 REPORTS_DIR = get_config('CLEANER', 'REPORTS_DIR', DEFAULTS.get('REPORTS_DIR'))
-CLEANER_ADD_KEYWORDS_DIR = get_config('CLEANER', 'ADD_KEYWORDS_DIR', ADD_KEYWORDS_DIR)
-CLEANER_OUTPUT_DIR = get_config('CLEANER', 'OUTPUT_DIR', DEFAULTS.get('CLEANER_OUTPUT_DIR'))
+#CLEANER_ADD_KEYWORDS_DIR = get_config('CLEANER', 'ADD_KEYWORDS_DIR', ADD_KEYWORDS_DIR)
+#CLEANER_OUTPUT_DIR = get_config('CLEANER', 'OUTPUT_DIR', DEFAULTS.get('CLEANER_OUTPUT_DIR'))
 
 # ---- OPEN_BLOGGER 用設定 ---
 BLOGGER_SIGNIN_URL = get_config('OPEN_BLOGGER', 'BLOGGER_SIGNIN_URL', DEFAULTS.get('BLOGGER_SIGNIN_URL'))
 MEDIA_MANAGER_URL = get_config('OPEN_BLOGGER', 'MEDIA_MANAGER_URL', DEFAULTS.get('MEDIA_MANAGER_URL'))
 
 # --- image_preparer.py 用設定 ---
-SOURCE_PHOTOS_DIR = get_config('IMAGE_PREPARER', 'SOURCE_PHOTOS_DIR', DEFAULTS.get('SOURCE_PHOTOS_DIR'))
-IMAGE_PREPARER_OUTPUT_DIR = get_config('IMAGE_PREPARER', 'OUTPUT_DIR', DEFAULTS.get('IMAGE_PREPARER_OUTPUT_DIR'))
+#SOURCE_PHOTOS_DIR = get_config('IMAGE_PREPARER', 'SOURCE_PHOTOS_DIR', DEFAULTS.get('SOURCE_PHOTOS_DIR'))
+#IMAGE_PREPARER_OUTPUT_DIR = get_config('IMAGE_PREPARER', 'OUTPUT_DIR', DEFAULTS.get('IMAGE_PREPARER_OUTPUT_DIR'))
 MEDIA_MANAGER_URL = get_config('IMAGE_PREPARER', 'MEDIA_MANAGER_URL', DEFAULTS.get('MEDIA_MANAGER_URL'))
 
 # --- convert_atom.py 用設定 ---
 CONVERT_ATOM_INPUT_DIR = get_config('CONVERT_ATOM', 'INPUT_DIR', DEFAULTS.get('CONVERT_ATOM_INPUT_DIR'))
 OUTPUT_FILE = get_config('CONVERT_ATOM', 'OUTPUT_FILE', DEFAULTS.get('OUTPUT_FILE'))
 BLOG_TITLE = get_config('CONVERT_ATOM', 'BLOG_TITLE', DEFAULTS.get('BLOG_TITLE'))
-BLOG_URL = get_config('CONVERT_ATOM', 'BLOG_URL', DEFAULTS.get('BLOG_URL'))
-
 # --- uploader.py 用設定 ---
 BLOG_ID = get_config('UPLOADER', 'BLOG_ID', DEFAULTS.get('BLOG_ID'))
 MEDIA_MANAGER_FILE = get_config('UPLOADER', 'MEDIA_MANAGER_FILE', DEFAULTS.get('MEDIA_MANAGER_FILE'))
@@ -108,52 +105,6 @@ SCOPES_STR = get_config('UPLOADER', 'SCOPES', DEFAULTS.get('SCOPES'))
 SCOPES = [s.strip() for s in SCOPES_STR.split(',')]
 DELAY_SECONDS = int(get_config('UPLOADER', 'DELAY_SECONDS', DEFAULTS.get('DELAY_SECONDS')))
 MAX_POSTS_PER_RUN = int(get_config('UPLOADER', 'MAX_POSTS_PER_RUN', DEFAULTS.get('MAX_POSTS_PER_RUN')))
-
-
-# --------------------------------------------------
-# 設定の検証
-# --------------------------------------------------
-def validate_config():
-    """設定の整合性を検証"""
-    issues = []
-    
-    if not BLOG_ID or BLOG_ID == 'あなたのブログID':
-        issues.append('⚠️  BLOG_ID が設定されていません。')
-    
-    if not os.path.exists(REPORTS_DIR):
-        issues.append(f'⚠️  REPORTS_DIR {REPORTS_DIR} が見つかりません。')
-    
-    if not os.path.exists(CLEANER_ADD_KEYWORDS_DIR):
-        issues.append(f'⚠️  ADD_KEYWORDS_DIR {CLEANER_ADD_KEYWORDS_DIR} が見つかりません。')
-    
-    if DELAY_SECONDS < 1:
-        issues.append('⚠️  DELAY_SECONDS は1以上である必要があります。')
-    
-    if MAX_POSTS_PER_RUN < 1:
-        issues.append('⚠️  MAX_POSTS_PER_RUN は1以上である必要があります。')
-    
-    return issues
-
-
-# 起動時に検証を実行（オプション）
-if __name__ == '__main__':
-    print('【設定の検証】')
-    issues = validate_config()
-    if issues:
-        for issue in issues:
-            print(issue)
-    else:
-        print('✅ 設定は正常です。')
-    
-    print('\n【読み込まれた設定値】')
-    print(f'XML_FILE: {XML_FILE}')
-    print(f'REPORTS_DIR: {REPORTS_DIR}')
-    print(f'CLEANER_OUTPUT_DIR: {CLEANER_OUTPUT_DIR}')
-    print(f'IMAGE_PREPARER_OUTPUT_DIR: {IMAGE_PREPARER_OUTPUT_DIR}')
-    print(f'CONVERT_ATOM_INPUT_DIR: {CONVERT_ATOM_INPUT_DIR}')
-    print(f'BLOG_TITLE: {BLOG_TITLE}')
-    print(f'DELAY_SECONDS: {DELAY_SECONDS}')
-    print(f'MAX_POSTS_PER_RUN: {MAX_POSTS_PER_RUN}')
 
 def open_file_with_default_app(filepath):
     """ファイルパスを受け取り、OSの標準アプリで開く関数"""
@@ -180,4 +131,12 @@ def open_config_file():
     if os.path.exists(config_path):
         open_file_with_default_app(config_path)
     else:
-        print(f'エラー: {config_path} が見つかりません。')  
+        print(f'エラー: {config_path} が見つかりません。') 
+        
+def open_folder(path):
+    """指定フォルダをファイルマネージャで開く"""
+    abs_path = os.path.abspath(path)
+    if os.path.exists(abs_path) and os.path.isdir(abs_path):
+        open_file_with_default_app(abs_path)
+    else:
+        print(f'エラー: {abs_path} が見つかりません。')

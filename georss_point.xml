@@ -1,6 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!-- 位置情報定義ファイル -->
-<!-- HTML内で見つかった地域名に対応する緯度経度を定義します -->
+<?xml version='1.0' encoding='utf-8'?>
 <root>
     <location>
         <name>東京</name>
@@ -27,4 +25,4 @@
         <latitude>26.2128</latitude>
         <longitude>127.6804</longitude>
     </location>
-</root>
+<location><name>山梨県西沢渓谷</name><latitude>34.7794887</latitude><longitude>135.3115717</longitude></location><location><name>冬の千畳敷</name><latitude>34.2351683</latitude><longitude>135.1709259</longitude></location><location><name>タイ</name><latitude>33.2721211</latitude><longitude>35.1964023</longitude></location><location><name>バンコク</name><latitude>13.7524938</latitude><longitude>100.4935089</longitude></location><location><name>乗鞍</name><latitude>35.0895576</latitude><longitude>136.9942897</longitude></location><location><name>美ヶ原</name><latitude>35.5543127</latitude><longitude>135.8588368</longitude></location><location><name>北海道自然に触れる旅</name><latitude /><longitude /></location><location><name>べっし</name><latitude>33.5276581</latitude><longitude>133.0583382</longitude></location><location><name>タイーバンコク</name><latitude /><longitude /></location><location><name>北海道アクティビティ</name><latitude /><longitude /></location><location><name>乗鞍・美ヶ原</name><latitude>34.5765348</latitude><longitude>135.7291217</longitude></location><location><name>北海道</name><latitude>43.4519831</latitude><longitude>142.8197834</longitude></location></root>

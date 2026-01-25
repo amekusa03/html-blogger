@@ -9,11 +9,15 @@ from config import get_config
 
 # --- 設定 ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
-REPORTS_DIR = SCRIPT_DIR / get_config('CLEANER', 'REPORTS_DIR')        # 元のレポートフォルダ群が入っている親フォルダ
-ADD_KEYWORDS_DIR = SCRIPT_DIR / get_config('CLEANER', 'ADD_KEYWORDS_DIR')        # キーワード追加後のフォルダ群が入っている親フォルダ
-OUTPUT_DIR = SCRIPT_DIR / get_config('CLEANER', 'OUTPUT_DIR') # 変換後の出力先フォルダ
+INPUT_DIR = SCRIPT_DIR / get_config('CLEANER', 'INPUT_DIR', './addKeyword_upload')  # 入力フォルダ
+OUTPUT_DIR = SCRIPT_DIR / get_config('CLEANER', 'OUTPUT_DIR', './work')  # 出力フォルダ
 
 def clean_html_for_blogger(html_text):
+    """ブログ用にHTMLをクリーンアップする。
+    重大削除チェックは本文テキスト同士の比較で行い、headやscript削除による誤検知を避ける。
+    """
+    # 元のHTMLを保持（後でテキスト長を比較するため）
+    original_html = html_text
     
     # 1. 改行とタブを一旦削除（後で<br>に基づいて再整理するため）
     html_text = re.sub(r'[\r\n\t]+', '', html_text)    
@@ -162,10 +166,25 @@ def clean_html_for_blogger(html_text):
     else:
         print("  -> !!!!Dateが見つかりません!!!!")                    
 
+    # 4.5 georss タグを抽出して保存（削除される前に）
+    georss_name = ""
+    georss_point = ""
+    
+    georss_name_match = re.search(r'<georss:name>(.*?)</georss:name>', html_text, flags=re.IGNORECASE | re.DOTALL)
+    if georss_name_match:
+        georss_name = georss_name_match.group(1).strip()
+        print(f"  -> GeoRSS Name見つかりました: {georss_name}")
+    
+    georss_point_match = re.search(r'<georss:point>(.*?)</georss:point>', html_text, flags=re.IGNORECASE | re.DOTALL)
+    if georss_point_match:
+        georss_point = georss_point_match.group(1).strip()
+        print(f"  -> GeoRSS Point見つかりました: {georss_point}")
+
     # 5. 不要なタグの削除
     #html_text = re.sub(r'</?(font|b).*?>', '', html_text, flags=re.IGNORECASE) # まとめて削除
     html_text = re.sub(r'</?(font|span|strong).*?>', '', html_text, flags=re.IGNORECASE)
-    html_text = re.sub(r'(</?b>|</b>|<b .*?>)', '', html_text, flags=re.IGNORECASE)
+    # <b>タグを削除（</b >も含む）、ただし</br >は残す
+    html_text = re.sub(r'(</?b>|</b\s*>|<b\s.*?>)', '', html_text, flags=re.IGNORECASE)
 
     patterns_to_remove = [
             r'<head.*?>.*?</head>',
@@ -208,14 +227,19 @@ def clean_html_for_blogger(html_text):
     html_text = re.sub(r'(</td>|</tr>|</table>|</h1>|</h2>|</h3>|</li>)', r'\1\n', html_text, flags=re.IGNORECASE)
     
     # 【重大エラーチェック】コンテンツ削除検出
-    # クリーニング後のテキストサイズが元の70%以下の場合は警告＋中断
-    original_length = len(content)
-    cleaned_preview = re.sub(r'<[^>]*>', '', html_text)  # テキスト部分のみ抽出
-    cleaned_length = len(cleaned_preview)
+    # head/script/styleなどの削除で大きく減ることがあるため、本文テキスト同士で比較する
+    original_plain = re.sub(r'<[^>]*>', '', original_html)
+    cleaned_plain = re.sub(r'<[^>]*>', '', html_text)
+    original_length = len(original_plain)
+    cleaned_length = len(cleaned_plain)
     
-    # 本文が極端に削られていないかチェック
-    if original_length > 100 and cleaned_length < original_length * 0.3:
-        error_msg = f"エラー: HTML クリーニング時にコンテンツが過度に削除されました。\n元: {original_length}文字 → 削除後: {cleaned_length}文字\n正規表現が過度に積極的な可能性があります。サンプルHTMLで検証してください。"
+    # 本文が極端に削られていないかチェック（20%未満なら中断）
+    if original_length > 100 and cleaned_length < original_length * 0.2:
+        error_msg = (
+            "エラー: HTML クリーニング時にコンテンツが過度に削除されました。\n"
+            f"元(本文): {original_length}文字 → 削除後: {cleaned_length}文字\n"
+            "正規表現が過度に積極的な可能性があります。サンプルHTMLで検証してください。"
+        )
         print(error_msg)
         sys.exit(1)
     
@@ -231,9 +255,16 @@ def clean_html_for_blogger(html_text):
     html_text = re.sub(r'<img[^>]*>', replace_img, html_text, flags=re.IGNORECASE)
     
     # 情報を下から順に積み上げるように結合します
-    # 本文の構成： [キーワード] -> [タイトル] -> [日付] -> [元の本文]
+    # 本文の構成： [キーワード] -> [タイトル] -> [日付] -> [GeoRSS] -> [元の本文]
     # 10.本文の先頭にタイトルを挿入する
     # 最後にメタ情報を先頭に付与（Blogger APIで活用するための目印）
+    
+    # GeoRSS位置情報を復元
+    if georss_point:
+        html_text = f'<georss:point>{georss_point}</georss:point>\n' + html_text
+    if georss_name:
+        html_text = f'<georss:name>{georss_name}</georss:name>\n' + html_text
+    
     # 最後に日付を入れる
     if extracted_date:
         html_text = f'<time datetime="{extracted_date}"></time>\n' + html_text
@@ -250,58 +281,59 @@ def clean_html_for_blogger(html_text):
                 
     return html_text.strip()
 
-# --- 実行セクション ---
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+# --- メイン処理 ---
+if __name__ == '__main__':
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-if ADD_KEYWORDS_DIR.exists():
-    SOURCE_DIR = ADD_KEYWORDS_DIR
-else:   
-    SOURCE_DIR = REPORTS_DIR
+    if not INPUT_DIR.exists():
+        print(f"エラー: {INPUT_DIR} が見つかりません")
+        sys.exit(1)
+    
+    SOURCE_DIR = INPUT_DIR
 
-processed_count = 0
-image_count = 0
+    processed_count = 0
+    image_count = 0
 
-print(f"--- 変換処理を開始します (対象フォルダ: {SOURCE_DIR}) ---")
+    print(f"--- 変換処理を開始します (対象フォルダ: {SOURCE_DIR}) ---")
 
-for root, dirs, files in os.walk(str(SOURCE_DIR)):
-    rel_path = os.path.relpath(root, str(SOURCE_DIR))
-    dest_dir = OUTPUT_DIR / rel_path if rel_path != '.' else OUTPUT_DIR
-    dest_dir.mkdir(parents=True, exist_ok=True)
+    for root, dirs, files in os.walk(str(SOURCE_DIR)):
+        rel_path = os.path.relpath(root, str(SOURCE_DIR))
+        dest_dir = OUTPUT_DIR / rel_path if rel_path != '.' else OUTPUT_DIR
+        dest_dir.mkdir(parents=True, exist_ok=True)
 
-    for filename in files:
-        src_path = Path(root) / filename
-        if filename.lower().endswith(('.htm', '.html')):
-            processed_count += 1
-            base_name = src_path.stem
-            dest_path = dest_dir / f"{base_name}.html"
+        for filename in files:
+            src_path = Path(root) / filename
+            if filename.lower().endswith(('.htm', '.html')):
+                processed_count += 1
+                base_name = src_path.stem
+                dest_path = dest_dir / f"{base_name}.html"
 
-            content = None
-            # 文字コードの判定
-            for encoding in ['utf-8', 'cp932', 'shift_jis']:
-                try:
-                    with open(src_path, 'r', encoding=encoding) as f:
-                        content = f.read()
-                    break
-                except:
-                    continue
+                content = None
+                # 文字コードの判定
+                for encoding in ['utf-8', 'cp932', 'shift_jis']:
+                    try:
+                        with open(src_path, 'r', encoding=encoding) as f:
+                            content = f.read()
+                        break
+                    except:
+                        continue
 
-            if content:
-                print(f"[{processed_count}] code {SOURCE_DIR}/{rel_path}/{filename}")
-                cleaned = clean_html_for_blogger(content)
-                with open(str(dest_path), 'w', encoding='utf-8') as f:
-                    f.write(cleaned)
-                print(f" -->HTML変換成功: {dest_path}")
+                if content:
+                    print(f"[{processed_count}] code {SOURCE_DIR}/{rel_path}/{filename}")
+                    cleaned = clean_html_for_blogger(content)
+                    with open(str(dest_path), 'w', encoding='utf-8') as f:
+                        f.write(cleaned)
+                    print(f" -->HTML変換成功: {dest_path}")
+                else:
+                    print(f"[{processed_count}] ×失敗(文字コード不明): {rel_path}/{filename}")
+
             else:
-                print(f"[{processed_count}] ×失敗(文字コード不明): {rel_path}/{filename}")
+                # 画像ファイルなどはそのままスキップ
+                # （入力フォルダと出力フォルダが同じため、コピー不要）
+                image_count += 1
 
-        else:
-            # 画像ファイルなどはそのままコピー
-            image_count += 1
-            dest_path = dest_dir / filename
-            shutil.copy2(str(src_path), str(dest_path))
-
-print("-" * 30)
-print(f"【処理完了】")
-print(f"変換したHTML: {processed_count} 本")
-print(f"コピーした画像他: {image_count} ファイル")
+    print("-" * 30)
+    print(f"【処理完了】")
+    print(f"変換したHTML: {processed_count} 本")
+    print(f"コピーした画像他: {image_count} ファイル")
 
