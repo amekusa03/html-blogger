@@ -1,5 +1,7 @@
 # Google Cloud & Blogger API セットアップガイド
 
+⚠️ **このセットアップはオプションです** - まず [QUICKSTART.md](QUICKSTART.md) で動作確認を完了してから、Google Cloud設定に進むことをお勧めします。
+
 ## 概要
 
 このドキュメントは、HTMLtoBloggerを使用するために必要なGoogle CloudプロジェクトとBlogger API v3の設定手順を説明します。

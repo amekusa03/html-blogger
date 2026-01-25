@@ -1,8 +1,15 @@
 # HTMLtoBlogger
 
-HTML4.0で作成された大量のWebページをGoogle Bloggerに移行・投稿するためのデスクトップツールです。
+⚠️ **開発版（動作確認中）** - 本格利用は動作確認完了後をお勧めします
+
+HTML4.0で作成された大量のWebページをGoogle Blogger に移行・投稿するためのデスクトップツールです。
 
 **English**: [README.en.md](README.en.md) (coming soon)
+
+> **ステータス**: 実装完了 ✅ | 動作確認：進行中 ⏳ | GitHub公開：準備段階
+> 
+> このプロジェクトはまだ初期テスト段階です。機能の動作確認を実施した上で、本格的な利用をお勧めします。
+> 動作確認済み機能や既知の問題については、[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) を参照してください。
 
 ## 概要
 
@@ -35,8 +42,8 @@ HTML4.0で作成された大量のWebページをGoogle Bloggerに移行・投�
 
 1. **リポジトリをクローン**
    ```bash
-   git clone https://github.com/yourusername/htmltobrogger.git
-   cd htmltobrogger
+   git clone https://github.com/amekusa03/html-blogger.git
+   cd html-blogger
    ```
 
 2. **仮想環境を作成・有効化**
@@ -54,6 +61,11 @@ HTML4.0で作成された大量のWebページをGoogle Bloggerに移行・投�
 
 4. **Google Cloud認証設定**
    詳細は [SETUP.md](docs/SETUP.md) を参照してください。
+
+⚠️ **インストール後の動作確認**:
+- `python html_tobrogger.py` で GUI が起動することを確認
+- 小さなテストHTMLファイル（1-2個）で動作テストを推奨
+- すべての機能が正常に動作することを確認した上で、本格利用を開始してください
 
 ## 使い方
 

@@ -6,8 +6,8 @@
 
 ### ステップ 1: リポジトリをクローン
 ```bash
-git clone https://github.com/yourusername/htmltobrogger.git
-cd htmltobrogger
+git clone https://github.com/amekusa03/html-blogger.git
+cd html-blogger
 ```
 
 ### ステップ 2: 仮想環境を作成
@@ -31,7 +31,35 @@ pip install -r requirements.txt
 python html_tobrogger.py
 ```
 
-🎉 **完了！** GUI ウィンドウが起動します。
+🖥️ **GUI ウィンドウが起動します。** 
+
+⚠️ **起動確認チェックリスト**:
+- [ ] GUI ウィンドウが表示される
+- [ ] 「フォルダを開く」ボタンが反応する
+- [ ] `reports/` フォルダが開く
+
+---
+
+## 🧪 初回動作確認（重要！）
+
+**本格利用する前に、必ず小さなテスト HTML ファイルで動作確認してください：**
+
+1. **テストファイルを用意**
+   ```
+   reports/test/
+   ├── test.html (100KB以下の小さいHTML)
+   └── test_image.jpg (小さい画像 1-2枚)
+   ```
+
+2. **各ボタンを順番にクリック**してみる
+   - エラーが出ないか確認
+   - ログメッセージを確認
+
+3. **すべてが正常に完了したら、本格利用を開始**
+   - テストで問題が出た場合は [TROUBLESHOOTING.md](TROUBLESHOOTING.md) を参照
+   - 解決しない場合は [GitHub Issues](https://github.com/amekusa03/html-blogger/issues) で報告
+
+⚠️ **警告**: 動作確認なしに大量ファイルを処理するのは避けてください。予期しない動作が発生する可能性があります。
 
 ---
 
@@ -132,31 +160,29 @@ pip install -r requirements.txt
 
 ---
 
-## 💡 よくある質問
+## 💡 動作確認時によくあること
 
-**Q: 複数のブログに投稿できますか？**
-A: `BLOG_ID` を変更して、複数回実行してください。
+**Q: GUI は起動するが、ボタンが反応しない**
+A: Python の version 確認、 venv が有効化されているか確認してください。[TROUBLESHOOTING.md](TROUBLESHOOTING.md) を参照。
 
-**Q: 大量の HTML ファイル（100+）を処理できますか？**
-A: はい。ただしBlogger API には割り当て制限があるため、複数日に分けることをお勧めします。
+**Q: エラーメッセージが出る**
+A: エラーメッセージをコピーして [TROUBLESHOOTING.md](TROUBLESHOOTING.md) で検索。見つからない場合は [GitHub Issues](https://github.com/amekusa03/html-blogger/issues) で報告。
 
-**Q: 画像を手動で配置する必要はありますか？**
-A: メディアマネージャーで Blogger にアップロードした後、ツールが自動でマッピングします。
-
-**Q: バックアップは作成されますか？**
-A: はい。各 HTML ファイルの修正前に `*.backup_` ファイルが自動作成されます。
+**Q: 処理は完了したが、ファイルが生成されていない**
+A: work/ フォルダの内容を確認。config.ini の設定を再度確認。
 
 ---
 
 ## 🚀 次のステップ
 
-1. [サンプル HTML](../reports/0205tai/tai.html) で試す
-2. [設定ファイル](../config.ini) をカスタマイズ
-3. [キーワード定義](../keywords.xml) を追加
-4. 大量投稿の場合は [ARCHITECTURE.md](ARCHITECTURE.md) でパフォーマンス最適化を確認
+1. ✅ テスト HTML で動作確認
+2. ✅ すべてが問題なく動作することを確認
+3. ✅ [設定ファイル](../config.ini) をカスタマイズ
+4. ✅ [キーワード定義](../keywords.xml) を追加
+5. ✅ 本格利用開始
 
 ---
 
 **最終更新**: 2026年1月25日
 
-**問題が発生した場合は、[TROUBLESHOOTING.md](TROUBLESHOOTING.md) を参照してください。**
+**動作確認の結果を教えてもらえると、今後の改善に役立ちます！**
