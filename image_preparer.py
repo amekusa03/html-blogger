@@ -1,13 +1,14 @@
 import os
 import shutil
 from pathlib import Path
+from config import get_config
 
 # --- 設定 ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
-# 古い写真が入っているルートフォルダのパス
-SOURCE_PHOTOS_DIR = SCRIPT_DIR / 'ready_to_upload'
+# 古い写真が入っているルートフォルダのパス（work フォルダから読み込み）
+SOURCE_PHOTOS_DIR = SCRIPT_DIR / get_config('READY_UPLOAD', 'INPUT_DIR', './work').lstrip('./')
 # リネーム後の画像を保存するフォルダ
-OUTPUT_DIR = SCRIPT_DIR / 'ready_to_upload_images'
+OUTPUT_DIR = SCRIPT_DIR / get_config('READY_UPLOAD', 'OUTPUT_DIR', './ready_upload').lstrip('./')
 
 def prepare_images():
     # 出力フォルダがなければ作成

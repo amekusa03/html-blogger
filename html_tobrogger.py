@@ -7,8 +7,13 @@ import subprocess
 import datetime
 import platform
 import shutil
+import webbrowser
 from pathlib import Path
 from config import get_config
+
+# --- URL定数 ---
+BLOGGER_SIGNIN_URL = 'https://www.blogger.com/go/signin'  # ブロガーサインインURL
+MEDIA_MANAGER_URL = 'http://blogger.com/mediamanager'  # メディアマネージャーURL
 
 # --- 設定ファイル編集用関数 ---
 def open_config_file():
@@ -79,17 +84,16 @@ def open_reports_folder():
     # 仕様D：ファイルがあれば警告
     # 注：config.ini で ADD_KEYWORDS_DIR = './work' に統合されている
     work_dir = script_dir / './work'  # 直接 work フォルダを指定
-    image_dir = script_dir / './image'
-    ready_load_dir = script_dir / './ready_load'
+    ready_upload_images_dir = script_dir / './ready_upload'
+    ready_upload_dir = script_dir / './ready_upload'
     
     # デバッグ：確認するフォルダを表示
     print(f"チェック対象フォルダ:")
     print(f"  reports_dir: {reports_dir}")
     print(f"  work_dir: {work_dir}")
-    print(f"  image_dir: {image_dir}")
-    print(f"  ready_load_dir: {ready_load_dir}")
+    print(f"  ready_upload_dir: {ready_upload_dir}")
     
-    folders_to_check = [reports_dir, work_dir, image_dir, ready_load_dir]
+    folders_to_check = [reports_dir, work_dir, ready_upload_dir]
     
     # バックアップファイルを除外して実ファイルがあるかチェック（再帰的）
     def has_real_files(folder):
@@ -159,6 +163,14 @@ def open_media_manager_folder():
     media_dir = script_dir / 'media-man'
     media_dir.mkdir(parents=True, exist_ok=True)
     
+    # ブラウザでメディアマネージャーURLを開く
+    try:
+        webbrowser.open(MEDIA_MANAGER_URL)
+        print(f"メディアマネージャーをブラウザで開きました: {MEDIA_MANAGER_URL}")
+    except Exception as e:
+        messagebox.showerror("エラー", f"ブラウザを開く際にエラーが発生しました: {e}")
+    
+    # フォルダも開く
     try:
         system = platform.system()
         if system == 'Darwin':  # macOS
@@ -172,11 +184,19 @@ def open_media_manager_folder():
         messagebox.showerror("エラー", f"フォルダを開く際にエラーが発生しました: {e}")
 
 def open_image_folder():
-    """image フォルダを開く（操作４）"""
+    """ready_upload フォルダを開く（操作４）"""
     script_dir = Path(__file__).parent.resolve()
-    image_dir = script_dir / get_config('IMAGE_PREPARER', 'OUTPUT_DIR', './image')
+    image_dir = script_dir / './ready_upload'
     image_dir.mkdir(parents=True, exist_ok=True)
     
+    # ブラウザでブロガーサインインURLを開く
+    try:
+        webbrowser.open(BLOGGER_SIGNIN_URL)
+        print(f"ブロガーサインインをブラウザで開きました: {BLOGGER_SIGNIN_URL}")
+    except Exception as e:
+        messagebox.showerror("エラー", f"ブラウザを開く際にエラーが発生しました: {e}")
+    
+    # フォルダも開く
     try:
         system = platform.system()
         if system == 'Darwin':  # macOS
@@ -185,7 +205,7 @@ def open_image_folder():
             subprocess.Popen(['explorer', str(image_dir)])
         else:  # Linux
             subprocess.Popen(['xdg-open', str(image_dir)])
-        print(f"image フォルダを開きました: {image_dir}")
+        print(f"ready_upload フォルダを開きました: {image_dir}")
     except Exception as e:
         messagebox.showerror("エラー", f"フォルダを開く際にエラーが発生しました: {e}")
 
@@ -204,32 +224,23 @@ def check_initialization():
 
 # --- メイン処理 ---
 # 操作３で実行される処理
-pythonproccess = [['キーワード作成', 'add_keywords.py'],
+pythonproccess = [['クリーニング', 'cleaner.py'],
+                ['キーワード作成', 'add_keywords.py'],
+                ['日付追加', 'add_date.py'],
                 ['位置情報追加', 'add_georss_point.py'],
-                ['htmlクリーニング', 'cleaner.py'],
-                ['画像位置情報削除＆ウォーターマーク追加', 'phot_exif_watemark.py']]
+                ['画像位置情報削除＆ウォーターマーク追加', 'phot_exif_watemark.py'],
+                ['アップロードフォルダ削除', 'delete_ready_upload.py'],
+                ['画像リネーム', 'image_preparer.py']]
 
 # 操作５で実行される処理
-pythonproccess_step5 = [['画像リンク設定', 'image_preparer.py'],
+pythonproccess_step5 = [['HTMLリネーム', 'html_preparer.py'],
+                        ['リンク設定', 'link_html.py'],
                         ['Atomフィード生成', 'convert_atom.py']]
 
 # 操作６で実行される処理（単独）
 pythonproccess_upload = [['アップロード', 'uploader.py']]
 # ボタン定義
-_btn_open_folder = 1
-_btn_start_process = 2
-_btn_open_media = 3
-_btn_open_image = 4
-_btn_start_step5 = 5
-_btn_upload = 6
-button_list = ['フォルダを開く'], ['開始'], ['メディアマネージャーを開く'], ['画像フォルダを開く'], ['画像リンク設定&Atomフィード生成'], ['アップロード']  
-
-# チェックボックス定義（各処理のON/OFF）
-_chk_keyword = 1
-_chk_georss = 2
-_chk_cleaner = 3
-_chk_watermark = 4
-checkbutton_list = ['キーワード作成','位置情報追加','htmlクリーニング','画像位置情報削除＆ウォーターマーク追加']
+button_list = ['フォルダを開く'], ['開始'], ['メディアマネージャーを開く'], ['画像フォルダを開く'], ['リンク設定&Atomフィード生成'], ['アップロード']  
 
 # --- メインウィンドウ作成 ---
 root = Tkinter.Tk()
@@ -279,8 +290,8 @@ def StartEntryValue(btn_text):
         open_image_folder()
         return
     
-    # 操作５：画像リンク設定 & Atomフィード生成
-    elif "画像リンク設定" in btn_text:
+    # 操作５：リンク設定 & Atomフィード生成
+    elif "リンク設定" in btn_text:
         start_step5()
         return
     
@@ -291,39 +302,25 @@ def StartEntryValue(btn_text):
 
 def start_step3():
     """操作３：キーワード作成～画像処理を実行"""
-    global process
-    
-    script_dir = Path(__file__).parent.resolve()
-    process_list = []
-    
-    # config.ini の ENABLED フラグをチェック
-    if get_config('ADD_KEYWORDS', 'ENABLED', 'true').lower() == 'true':
-        process_list.append(['キーワード作成', 'add_keywords.py'])
-    
-    if get_config('ADD_GEORSS_POINT', 'ENABLED', 'true').lower() == 'true':
-        process_list.append(['位置情報追加', 'add_georss_point.py'])
-    
-    if get_config('CLEANER', 'ENABLED', 'true').lower() == 'true':
-        process_list.append(['htmlクリーニング', 'cleaner.py'])
-    
-    if get_config('PHOROS_DELEXIF_ADDWATERMARK', 'ENABLED', 'true').lower() == 'true':
-        process_list.append(['画像位置情報削除＆ウォーターマーク追加', 'phot_exif_watemark.py'])
-    
-    if not process_list:
-        messagebox.showwarning("警告", "実行する処理がありません（すべて無効になっています）")
-        return
-    
     text_widget.delete('1.0', Tkinter.END)
-    text_widget.insert(Tkinter.END, f"=== 操作３：処理開始 ({len(process_list)}個) ===\n")
+    text_widget.insert(Tkinter.END, f"=== 操作３：処理開始 ({len(pythonproccess)}個) ===\n")
     
     # 順次実行
     global current_process_index, current_process_list
-    current_process_list = process_list
+    current_process_list = pythonproccess
     current_process_index = 0
     run_next_process()
 
 def start_step5():
-    """操作５：画像リンク設定 & Atomフィード生成を実行"""
+    """操作５：リンク設定 & Atomフィード生成を実行"""
+    
+    # ブラウザでブロガーサインインURLを開く
+    try:
+        webbrowser.open(BLOGGER_SIGNIN_URL)
+        print(f"ブロガーサインインをブラウザで開きました: {BLOGGER_SIGNIN_URL}")
+    except Exception as e:
+        messagebox.showerror("エラー", f"ブラウザを開く際にエラーが発生しました: {e}")
+        
     # まず Blogger URL を入力してもらう
     url = simpledialog.askstring(
         "操作４：Blogger URL入力",
@@ -347,7 +344,7 @@ def start_step5():
     
     # 続けて操作５の処理を実行
     text_widget.delete('1.0', Tkinter.END)
-    text_widget.insert(Tkinter.END, f"=== 操作５：画像リンク設定 & Atomフィード生成 ===\n")
+    text_widget.insert(Tkinter.END, f"=== 操作５：リンク設定 & Atomフィード生成 ===\n")
     
     global current_process_index, current_process_list
     current_process_list = pythonproccess_step5
@@ -435,9 +432,9 @@ header_frame.pack(side="top", anchor="nw", padx=10, pady=10)
 button_labels = [
     ("フォルダを\n開く", 0, 0),
     ("開始", 0, 1),
-    ("メディアマネージャー\nを開く", 0, 2),
-    ("画像フォルダ\nを開く", 1, 0),
-    ("画像リンク設定&\nAtomフィード生成", 1, 1),
+    ("画像フォルダ\nを開く", 0, 2),
+    ("メディアマネージャー\nを開く", 1, 0),
+    ("リンク設定&\nAtomフィード生成", 1, 1),
     ("アップロード", 1, 2)
 ]
 

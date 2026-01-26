@@ -57,8 +57,8 @@
     </location>
     <location>
         <name>北海道自然に触れる旅</name>
-        <latitude></latitude>
-        <longitude></longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>べっし</name>
@@ -67,13 +67,13 @@
     </location>
     <location>
         <name>タイーバンコク</name>
-        <latitude></latitude>
-        <longitude></longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>北海道アクティビティ</name>
-        <latitude></latitude>
-        <longitude></longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>乗鞍・美ヶ原</name>
@@ -84,5 +84,30 @@
         <name>北海道</name>
         <latitude>43.4519831</latitude>
         <longitude>142.8197834</longitude>
+    </location>
+    <location>
+        <name>忘年会</name>
+        <latitude>24.9927787</latitude>
+        <longitude>121.4218713</longitude>
+    </location>
+    <location>
+        <name>エメラルド</name>
+        <latitude>34.0154923</latitude>
+        <longitude>130.9531585</longitude>
+    </location>
+    <location>
+        <name>旅行</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>アウトドア</name>
+        <latitude>35.7648104</latitude>
+        <longitude>139.7986858</longitude>
+    </location>
+    <location>
+        <name>アウトドアキャンプ</name>
+        <latitude />
+        <longitude />
     </location>
 </root>

@@ -13,17 +13,10 @@ from googleapiclient.discovery import build
 # --- 設定 ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
 BLOG_ID = 'あなたのブログID'
-MEDIA_MANAGER_FILE = SCRIPT_DIR / 'Blogger メディア マネージャー_ddd.html'
 LOG_FILE = SCRIPT_DIR / 'uploaded_atom_ids.txt'
 SCOPES = ['https://www.googleapis.com/auth/blogger']
 DELAY_SECONDS = 15      # 安全のため15秒
 MAX_POSTS_PER_RUN = 5   # 最初は5件でテスト
-
-# 画像サイズ定義 (仕様1)
-SIZE_MAP = {
-    'landscape': [{'w': 640, 'h': 480}, {'w': 400, 'h': 300}, {'w': 320, 'h': 240}, {'w': 200, 'h': 150}],
-    'portrait':  [{'w': 480, 'h': 640}, {'w': 300, 'h': 400}, {'w': 240, 'h': 320}, {'w': 150, 'h': 200}]
-}
 
 def get_blogger_service():
     """Google Blogger API サービスオブジェクトを取得"""
@@ -66,64 +59,6 @@ def get_blogger_service():
     
     return build('blogger', 'v3', credentials=creds)
 
-def load_media_mapping():
-    # メディアマネージャーファイルから画像URLをマッピング
-    mapping = {}
-    if not MEDIA_MANAGER_FILE.exists():
-        print(f"警告: {MEDIA_MANAGER_FILE} が見つかりません。")
-        return mapping
-    with open(str(MEDIA_MANAGER_FILE), 'r', encoding='utf-8') as f:
-        soup = BeautifulSoup(f, 'html.parser')
-        for a in soup.find_all('a', href=re.compile(r'googleusercontent\.com')):
-            url = a['href']
-            filename = url.split('/')[-1]
-            mapping[filename] = url
-    
-    return mapping
-
-def resize_logic(w, h):
-    mode = 'landscape' if w >= h else 'portrait'
-    targets = SIZE_MAP[mode]
-    if w <= targets[-1]['w']: return targets[-1]['w'], targets[-1]['h']
-    for target in targets:
-        if w >= target['w']: return target['w'], target['h']
-    return targets[-1]['w'], targets[-1]['h']
-
-def process_content(html, media_map):
-    """本文の加工：URL置換とリサイズのみ（タイトル挿入は行わない）"""
-    soup = BeautifulSoup(html, 'html.parser')
-    
-    # マッピング失敗したファイルを記録
-    unmapped_files = []
-
-    # 画像処理 (仕様2およびサイズ調整)
-    for img in soup.find_all('img'):
-        # 1. URL置換
-        src_attr = img.get('src', '')
-        old_filename = src_attr.split('/')[-1]
-        if old_filename in media_map:
-            img['src'] = media_map[old_filename]
-        else:
-            # マッピングできないファイルを記録
-            if old_filename:
-                unmapped_files.append(old_filename)
-
-        # 2. リサイズ (仕様1)
-        try:
-            w, h = int(img.get('width', 0)), int(img.get('height', 0))
-            if w > 0 and h > 0:
-                new_w, new_h = resize_logic(w, h)
-                img['width'], img['height'] = str(new_w), str(new_h)
-        except:
-            pass
-
-    # マッピング失敗した画像に対して警告を出力
-    if unmapped_files:
-        for filename in unmapped_files:
-            print(f"警告: 画像URLがマッピングされません: {filename}")
-
-    return str(soup)
-
 def extract_labels_from_content(content):
     """本文内のメタコメント<!--labels:...-->からラベルを抽出する"""
     # ラベルはHTMLコメント形式: <!--labels:label1,label2,label3-->
@@ -159,8 +94,6 @@ def upload_from_ready_to_upload():
     feed_file = SCRIPT_DIR / 'feed.atom'
     if not feed_file.exists():
         raise FileNotFoundError('feed.atom が見つかりません。Blogger からエクスポートした Atom ファイルを配置してください。')
-    
-    media_map = load_media_mapping()
     
     if LOG_FILE.exists():
         try:
@@ -202,17 +135,6 @@ def upload_from_ready_to_upload():
         content = entry.find('atom:content', ns).text or ""
         published = entry.find('atom:published', ns).text
 
-        # 本文の加工 (画像のみ)
-        # processed_html = process_content(content, media_map)
-
-        # # Blogger API へのリクエストボディ
-        # body = {
-        #     'kind': 'blogger#post',
-        #     'title': title,           # ここでAtomのタイトルが記事タイトルになります
-        #     'content': processed_html, # 本文にはタイトルを含めない
-        #     'published': published,    # 当時の日付
-        #     'blog': {'id': BLOG_ID},
-        # }
         # 本文（content）からラベルを抜き出し
         labels = extract_labels_from_content(content)
 

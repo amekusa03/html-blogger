@@ -1,10 +1,9 @@
 import os
 import re      
 import shutil
-import unicodedata
-import calendar
 import sys
 from pathlib import Path
+from bs4 import BeautifulSoup, NavigableString, Comment
 from config import get_config
 
 # --- 設定 ---
@@ -41,189 +40,60 @@ def clean_html_for_blogger(html_text):
     else:
         print("  -> !!!!!Titleが見つかりません!!!!!!") 
 
-            
-    # 3. キーワードを抽出して保存する（消される前に！）
-    # <meta name="keywords" content="..."> の中身を抜き出す
-    keywords_all = re.findall(r'<meta\s+name=["\']keywords["\']\s+content=["\'](.*?)["\']', html_text, flags=re.IGNORECASE | re.DOTALL)
+    # 3. BeautifulSoupを使って不要なタグと属性を削除
+    soup = BeautifulSoup(html_text, 'html.parser')
     
-    extracted_keywords = ""
-    if keywords_all:
-        # 見つかったすべてのキーワード定義をカンマで結合
-        # 例：['登山', 'スキー'] -> "登山, スキー"
-        combined_keywords = ",".join(keywords_all)
-        
-        # 不要な空白を掃除し、重複を排除（もしあれば）
-        kw_list = [k.strip() for k in combined_keywords.split(',') if k.strip()]
-        unique_kws = []
-        for k in kw_list:
-            if k not in unique_kws:
-                unique_kws.append(k)
-        
-        extracted_keywords = ",".join(unique_kws)
-    if extracted_keywords:
-        print(f"  -> Keywords見つかりました: {extracted_keywords}")
-    else:
-        print("  -> !!!!Keywordsが見つかりません!!!!")
-        
-    # 4. 日付を抽出して保存する（消される前に！）
-    # <time datetime="..."> の中身を抜き出す
-    date_match = re.search(r'<time\s+datetime=["\'](.*?)["\']', html_text, flags=re.IGNORECASE | re.DOTALL)
-    extracted_date = ""
-    if date_match:
-        for group in date_match.groups():
-            if group.strip() !="":
-                extracted_date = group.strip()
-    if not extracted_date:
-        # 代替案：本文中の日付パターンを探す（例: 2003年1/18〜20）
-        # 正規表現で各パーツを分離して抽出
-        # グループ1: 年, グループ2: 月, グループ3: 開始日, グループ4: 終了日(任意)
-        unicode  = unicodedata.normalize('NFKC', html_text)
-
-        # まずは年を探す
-        def extract_year():
-            match = re.search(r'(\d{4})年', unicode)        
-            if not match:
-                match = re.search(r'(\d{4})/', unicode)
-                if not match:
-                    match = re.search(r'(\d{4}.)', unicode)
-                    if not match:
-                        match = re.search(r'(\d{4})', unicode)
-                        if not match:
-                            return None
-            if int(match.group(1)) > 1900 and int(match.group(1)) < 2100:
-                return match.group(1)
-            return None
-        def extract_month():
-            match = re.search(r'(\d{1,2})月', unicode)        
-            if not match:
-                match = re.search(r'/(\d{1,2})/', unicode)
-                if not match:
-                    match = re.search(r'/(\d{1,2}).', unicode)
-                    if not match:
-                        match = re.search(r'/(\d{1,2})', unicode)
-                        if not match:
-                            return None
-            month = int(match.group(1))
-            if int(month) >=1 and int(month) <=12:
-                return str(month)
-            return None
-        def extract_start_day():
-            match = re.search(r'(\d{1,2})日', unicode)        
-            if not match:
-                match = re.search(r'/(\d{1,2})/', unicode)
-                if not match:
-                    match = re.search(r'/(\d{1,2}).', unicode)
-                    if not match:
-                        match = re.search(r'/(\d{1,2})', unicode)
-                        if not match:
-                            return None
-            day = int(match.group(1))
-            if day >=1 and day <=31:
-                return str(day)
-            return None
-        def extract_end_day():
-            match = re.search(r'〜\s*(\d{1,2})日', unicode)        
-            if not match:
-                match = re.search(r'〜\s*/(\d{1,2})/', unicode)
-                if not match:
-                    match = re.search(r'〜\s*/(\d{1,2}).', unicode)
-                    if not match:
-                        match = re.search(r'〜\s*/(\d{1,2})', unicode)
-                        if not match:
-                            return None
-            day = int(match.group(1))
-            if day >=1 and day <=31:
-                return str(day)
-            return None
-
-        year = extract_year()
-        month = extract_month()
-        start_day = extract_start_day()
-        end_day = extract_end_day()
-        
-        # ✅ None チェック強化
-        if year is None or month is None:
-            year, month, start_day = None, None, None
-        
-        if end_day is None:
-            day = start_day
+    # 4. 不要なタグを完全に削除（タグとその中身）
+    # <head>, <title>, <search>, <time>, <georss> は保持する
+    for tag in soup.find_all(['script', 'style', 'meta']):
+        tag.decompose()
+    
+    # 5. コメントを削除
+    from bs4 import Comment
+    for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
+        comment.extract()
+    
+    # 6. フォーマットタグを削除（タグのみ削除、中身は保持）
+    unwrap_tags = ['font', 'span', 'strong', 'b', 'em', 'i', 'u', 'strike', 's', 'center']
+    for tag_name in unwrap_tags:
+        for tag in soup.find_all(tag_name):
+            tag.unwrap()
+    
+    # 7. すべてのタグから不要な属性を削除
+    bad_attrs = ['bgcolor', 'style', 'class', 'id', 'width', 'height', 'border', 
+                 'align', 'valign', 'cellspacing', 'cellpadding', 'lang', 
+                 'http-equiv', 'content', 'font-family', 'font-color', 'color']
+    
+    for tag in soup.find_all(True):  # すべてのタグ
+        # imgタグは特別扱い（width/heightは後で処理）
+        if tag.name == 'img':
+            attrs_to_remove = [attr for attr in tag.attrs if attr not in ['src', 'alt', 'width', 'height']]
         else:
-            day = end_day
+            attrs_to_remove = [attr for attr in tag.attrs if attr in bad_attrs]
         
-        # day が None の場合は月の最終日を使用
-        if day is None and year is not None and month is not None:
-            try:
-                day = str(calendar.monthrange(int(year), int(month))[1])
-            except (ValueError, TypeError):
-                day = None
-            
-        # すべての必須フィールドがそろった場合のみ日付を確定
-        if start_day is not None and month is not None and year is not None and day is not None:
-            extracted_date = f"{year}-{month}-{day}"
-
-    if extracted_date:
-        print(f"  -> Date見つかりました: {extracted_date}")
-    else:
-        print("  -> !!!!Dateが見つかりません!!!!")                    
-
-    # 4.5 georss タグを抽出して保存（削除される前に）
-    georss_name = ""
-    georss_point = ""
+        for attr in attrs_to_remove:
+            del tag[attr]
     
-    georss_name_match = re.search(r'<georss:name>(.*?)</georss:name>', html_text, flags=re.IGNORECASE | re.DOTALL)
-    if georss_name_match:
-        georss_name = georss_name_match.group(1).strip()
-        print(f"  -> GeoRSS Name見つかりました: {georss_name}")
+    # <body>と<head>の属性を削除（タグは保持）
+    for tag_name in ['body', 'head']:
+        tag = soup.find(tag_name)
+        if tag:
+            tag.attrs = {}
     
-    georss_point_match = re.search(r'<georss:point>(.*?)</georss:point>', html_text, flags=re.IGNORECASE | re.DOTALL)
-    if georss_point_match:
-        georss_point = georss_point_match.group(1).strip()
-        print(f"  -> GeoRSS Point見つかりました: {georss_point}")
-
-    # 5. 不要なタグの削除
-    #html_text = re.sub(r'</?(font|b).*?>', '', html_text, flags=re.IGNORECASE) # まとめて削除
-    html_text = re.sub(r'</?(font|span|strong).*?>', '', html_text, flags=re.IGNORECASE)
-    # <b>タグを削除（</b >も含む）、ただし</br >は残す
-    html_text = re.sub(r'(</?b>|</b\s*>|<b\s.*?>)', '', html_text, flags=re.IGNORECASE)
-
-    patterns_to_remove = [
-            r'<head.*?>.*?</head>',
-            r'<script.*?>.*?</script>',
-            r'<style.*?>.*?</style>',
-            r'<title.*?>.*?</title>',
-            # --- HTTrackのコメントを個別に、かつ確実に消すパターン ---
-            r'', 
-            r'',
-            # --- 一般的なコメントを「改行を含めて」最短一致で消すパターン ---
-            r'',
-            r'<!--.*?-->',
-            r'<meta.*?>',
-            r'<!doctype.*?>' # ついでにdoctypeも消しておくと綺麗です
-    ]
-    for pattern in patterns_to_remove:
-        # flags=re.DOTALL を付けることで、コメントが複数行にわたっても削除できます
-        html_text = re.sub(pattern, '', html_text, flags=re.DOTALL | re.IGNORECASE)
- 
-     
-    # 6. 特定の不要な属性を削除 (styleやbgcolorなど)
-    bad_attrs = ['bgcolor', 'style', 'class', 'id', 'width', 'height', 'border', 'align', 'valign', 'cellspacing', 'cellpadding', 'lang', 'http-equiv', 'content','font-family','font color','!--']
-    for attr in bad_attrs:
-        pattern = rf'\s+{attr}\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)'
-        html_text = re.sub(pattern, '', html_text, flags=re.IGNORECASE)
-
-    # 7. body内を抽出(style, bgcolorなど)
-    # bad_attrs = ['bgcolor', 'style', 'class', 'id', 'width', 'height', 'border', 'align', 'valign', 'cellspacing', 'cellpadding', 'lang', 'http-equiv', 'content','font-family','font color']
-    # for attr in bad_attrs:
-    #     pattern = rf'\s+{attr}\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)'
-    #     html_text = re.sub(pattern, '', html_text, flags=re.IGNORECASE)
-
-    # 8. 改行整理
+    # HTML文字列に戻す（全体を保持）
+    html_text = str(soup)
+    
+    # 念のため、残っているfontタグを正規表現でも削除
+    html_text = re.sub(r'<font[^>]*>', '', html_text, flags=re.IGNORECASE)
+    html_text = re.sub(r'</font>', '', html_text, flags=re.IGNORECASE)
+    
+    # 6. 改行整理
     #html_text = re.sub(r'[\r\n\t]+', '\n', html_text) # 連続改行をスペース1つに
     html_text = re.sub(r'\s+', ' ', html_text).strip()
     #html_text = re.sub(r'<br.?*>', '<br />\n', html_text, flags=re.IGNORECASE)
-    html_text = re.sub(r'(<br/>|</br>)', '<br/>\n', html_text)    
+    html_text = re.sub(r'(<br/>|</br>|<br>|<br\s*/>)', '<br/>\n', html_text, flags=re.IGNORECASE)    
 
-    # 9. テーブルやリストなどの構造タグの後にも改行を入れるとソースが見やすくなります
+    # 7. テーブルやリストなどの構造タグの後にも改行を入れるとソースが見やすくなります
     html_text = re.sub(r'(</td>|</tr>|</table>|</h1>|</h2>|</h3>|</li>)', r'\1\n', html_text, flags=re.IGNORECASE)
     
     # 【重大エラーチェック】コンテンツ削除検出
@@ -254,42 +124,66 @@ def clean_html_for_blogger(html_text):
 
     html_text = re.sub(r'<img[^>]*>', replace_img, html_text, flags=re.IGNORECASE)
     
-    # 情報を下から順に積み上げるように結合します
-    # 本文の構成： [キーワード] -> [タイトル] -> [日付] -> [GeoRSS] -> [元の本文]
-    # 10.本文の先頭にタイトルを挿入する
-    # 最後にメタ情報を先頭に付与（Blogger APIで活用するための目印）
+    # 11. HTML構造の正規化（<head>と<body>が存在しない場合は追加）
+    soup_final = BeautifulSoup(html_text, 'html.parser')
     
-    # GeoRSS位置情報を復元
-    if georss_point:
-        html_text = f'<georss:point>{georss_point}</georss:point>\n' + html_text
-    if georss_name:
-        html_text = f'<georss:name>{georss_name}</georss:name>\n' + html_text
+    # <head>タグの存在確認と追加
+    if not soup_final.find('head'):
+        head_tag = soup_final.new_tag('head')
+        # <title>を探してあればheadに移動
+        title_tag = soup_final.find('title')
+        if title_tag:
+            title_tag.extract()
+            head_tag.append(title_tag)
+        # htmlタグがあればその先頭に、なければ全体の先頭に挿入
+        html_tag = soup_final.find('html')
+        if html_tag:
+            html_tag.insert(0, head_tag)
+        else:
+            soup_final.insert(0, head_tag)
     
-    # 最後に日付を入れる
-    if extracted_date:
-        html_text = f'<time datetime="{extracted_date}"></time>\n' + html_text
-        
-    # 次にタイトルを入れる
-    if extracted_title:
-        html_text = f'<title>{extracted_title}</title>\n' + html_text
-
-    # 一番上にキーワード（ラベル）を入れる
-    if extracted_keywords:
-        # ここで確実に html_text の先頭に結合します
-        html_text = f'{extracted_keywords}\n' + html_text
-        print(f"  -> 出力確認: {extracted_keywords}")
-                
+    # <body>タグの存在確認と追加
+    if not soup_final.find('body'):
+        body_tag = soup_final.new_tag('body')
+        # <head>以外の全要素をbodyに移動
+        head_tag = soup_final.find('head')
+        for element in list(soup_final.children):
+            if element != head_tag and element.name not in [None, 'html']:
+                element.extract()
+                body_tag.append(element)
+        # htmlタグがあればその中に、なければ全体に追加
+        html_tag = soup_final.find('html')
+        if html_tag:
+            html_tag.append(body_tag)
+        else:
+            soup_final.append(body_tag)
+    
+    html_text = str(soup_final)
+    
     return html_text.strip()
 
 # --- メイン処理 ---
 if __name__ == '__main__':
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    if not INPUT_DIR.exists():
-        print(f"エラー: {INPUT_DIR} が見つかりません")
+    # ✅ work/ ディレクトリをリセット（reports/ からコピー）
+    REPORTS_DIR = SCRIPT_DIR / get_config('CLEANER', 'REPORTS_DIR', './reports')
+    
+    if not REPORTS_DIR.exists():
+        print(f"エラー: {REPORTS_DIR} が見つかりません")
         sys.exit(1)
     
-    SOURCE_DIR = INPUT_DIR
+    # work/ を削除して再作成
+    shutil.rmtree(str(OUTPUT_DIR), ignore_errors=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # reports/ から work/ にコピー
+    try:
+        shutil.copytree(str(REPORTS_DIR), str(OUTPUT_DIR), dirs_exist_ok=True)
+        print(f"コピー完了: {REPORTS_DIR} → {OUTPUT_DIR}")
+    except Exception as e:
+        print(f"エラー: ディレクトリコピーに失敗しました: {e}")
+        sys.exit(1)
+    
+    SOURCE_DIR = OUTPUT_DIR
 
     processed_count = 0
     image_count = 0

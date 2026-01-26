@@ -7,19 +7,19 @@
 
 ### データフロー
 ```
-reports/          → work/                                      → image/             → ready_load/  → finished/    → Blogger
-  (ユーザー入力)     (キーワード注入、位置追加、EXIF削除等)      (ユーザーが配置)    (アップロード待機)  (完了)       (Google API)
+reports/          → work/                                      → ready_uplode/      → ready_load/      → finished/    → Blogger
+  (ユーザー入力)     (キーワード注入、位置追加、EXIF削除等)      (リネーム済み画像)   (Atomフィード)     (完了)       (Google API)
 ```
 
 **注**: 仕様変更により、ステージ処理結果は `work/` に集約され、各ステージは config.ini で ON/OFF 制御可能
 
 ### 処理ステージ（実行順）
-1. **add_keywords.py**: `keywords.xml`を読み込み、HTMLに`<meta name="keywords">`を注入・マージ、オリジナルをバックアップ
-2. **add_georss_point.py**: `georss_point.xml`から地域情報を読み込み、HTML内で地域名が見つかった場合に`<georss:point>`タグを`<head>`内に注入（複数見つかった場合は最後のものを採用）
-3. **cleaner.py**: HTMLからタイトル・日付・キーワードを抽出、すべてのフォーマットを削除、`work/`に出力
+1. **cleaner.py**: HTMLからタイトル・日付・キーワードを抽出、すべてのフォーマットを削除、`work/`に出力
+2. **add_keywords.py**: `keywords.xml`を読み込み、HTMLに`<meta name="keywords">`を注入・マージ、オリジナルをバックアップ
+3. **add_georss_point.py**: `georss_point.xml`から地域情報を読み込み、HTML内で地域名が見つかった場合に`<georss:point>`タグを`<head>`内に注入（複数見つかった場合は最後のものを採用）
 4. **phot_exif_watemark.py**: *(オプション)* 画像からEXIFデータを削除し、ウォーターマークを追加（`piexif`、`PIL`使用）
-5. **open_blogger.py**: ブラウザでBloggerサインインとメディアマネージャーを開き、URLからBLOG_IDを抽出して`config.ini`に自動保存
-6. **image_preparer.py**: `work/`から画像をコピー・リネーム（`{folder_name}{filename}`パターン使用）、`image/`に配置
+5. **image_preparer.py**: `work/`から画像をコピー・リネーム（`{folder_name}{filename}`パターン使用）、`ready_uplode/`に配置
+6. **open_blogger.py**: ブラウザでBloggerサインインとメディアマネージャーを開き、URLからBLOG_IDを抽出して`config.ini`に自動保存
 7. **convert_atom.py**: クリーニング済みHTMLからAtomフィード形式に変換（`feed.atom`生成）
 8. **uploader.py**: Google Blogger API v3を使用してポストを公開
 
@@ -28,14 +28,14 @@ reports/          → work/                                      → image/     
 ### 入力/出力フォルダ
 - **`reports/`**: ユーザーが入力するソースHTMLファイル `reports/{LOCATION_CODE}/index.htm`と埋め込み画像
 - **`work/`**: 処理ステージ集約フォルダ - キーワード注入、位置情報追加、EXIF削除、ウォーターマーク追加などの中間ファイルを順次生成
-- **`image/`**: ユーザーがアップロード用画像をここに配置（リネーム済み: `{folder_name}{filename}`パターン）
-- **`ready_load/`**: アップロード前の待機フォルダ - Atomフィード・HTMLファイル・設定情報を保持
-- **`finished/`**: アップロード完了済みファイルの移動先（`ready_load/`から処理後に移動）
+- **`ready_uplode/`**: リネーム済み画像の出力先（`image_preparer.py`が`work/`から自動生成、`{folder_name}{filename}`パターン）
+- **`ready_load/`**: Atomフィード生成の出力先（`convert_atom.py`が`feed.atom`を生成）
+- **`finished/`**: アップロード完了済みファイルの移動先
 - **設定ファイル群**: `keywords.xml`、`georss_point.xml`、`config.ini`、`credentials.json` (削除しない)
 
 ### フォルダ命名規則
 ロケーションコードはディレクトリ名（例：`0205tai`、`0209nori`、`1404tokyo`）。これらが画像名プレフィックスになる：
-- ソース: `reports/0205tai/photo01.jpg` → リネーム後: `image/0205taiphoto01.jpg`
+- ソース: `reports/0205tai/photo01.jpg` → リネーム後: `ready_uplode/0205taiphoto01.jpg`
 
 ## 重要な実装パターン
 
@@ -87,12 +87,13 @@ reports/          → work/                                      → image/     
 - **エラーハンドリング**: 不正なURL入力の場合は エラーメッセージを表示し、操作をやり直すよう促す
 
 ### image_preparer.py の詳細
-- **画像発見**: `work/` フォルダから画像をコピー・リネーム
+- **画像発見**: `work/` フォルダから画像をコピー・リネーム（`config.ini`の`[READY_UPLOAD]`セクションで設定）
 - **サポート形式**: `.jpg`、`.jpeg`、`.png`、`.gif`（大文字小文字区別なし）
-- **リネームパターン**: `{folder_name}{original_filename}`（例：`0205tai/photo01.jpg` → `0205taiphoto01.jpg`）
+- **リネームパターン**: `{folder_name}{original_filename}`（例：`work/0205tai/photo01.jpg` → `ready_uplode/0205taiphoto01.jpg`）
 - **コピー操作**: メタデータを保存するため`shutil.copy2()`を使用。出力フォルダは`mkdir(parents=True, exist_ok=True)`で作成
-- **HTML内パス置換**: リネーム後、HTML内の旧ファイル名参照も新ファイル名に自動置換
+- **出力先**: `./ready_uplode/` フォルダにリネーム済み画像を配置（Bloggerへの手動アップロード用）
 - **エラーハンドリング**: ファイルごとにtry/except、エラー出力後も他のファイル処理を継続
+- **config.ini での制御**: `[READY_UPLOAD]` セクションに `INPUT_DIR`、`OUTPUT_DIR` で入出力パス設定
 
 ### convert_atom.py の詳細
 - **Atomフィード生成**: `work/`内の各HTMLをAtomエントリに変換、`feed.atom`ファイルを生成
@@ -107,7 +108,9 @@ reports/          → work/                                      → image/     
   2. 期限切れ/無効な場合、`creds.refresh(Request())`でリフレッシュ
   3. 有効な認証情報がない場合、`InstalledAppFlow.from_client_secrets_file()`でインタラクティブ認証実行
   4. リフレッシュされた認証情報を`token.pickle`に自動保存
-- **画像URL抽出**: `Blogger メディア マネージャー_ddd.html`をBeautifulSoup（`html.parser`エンジン）でパース、すべての`<a href="...googleusercontent.com...">` URLを抽出、ファイル名でマッピング
+- **画像URL抽出**: `Blogger メディア マネージャー_{ブログ名}.html`をBeautifulSoup（`html.parser`エンジン）でパース、すべての`<a href="...googleusercontent.com...">` URLを抽出、ファイル名でマッピング
+  - **重要**: 同じフォルダーに複数のMediaManager HTMLファイルが存在する場合は**エラーとして処理を中断**し、ユーザーに正確なファイルを1つだけ残すようメッセージ表示
+  - ファイル名の `{ブログ名}` 部分はユーザーのブログ名によって変わる
 - **サイズマッピング**: 元の画像サイズを標準サイズにマップ：
   - 横長 (w > h): 640×480、400×300、320×240、200×150
   - 縦長 (h ≥ w): 480×640、300×400、240×320、150×200
@@ -123,6 +126,12 @@ reports/          → work/                                      → image/     
 - **`credentials.json`**: Google Cloud ConsoleからのOAuth認証情報（Desktop App型、プロジェクトルートに配置）
 - **`token.pickle`**: 最初のOAuthフロー後に自動生成、認証セッションを永続化
 - **`uploaded_atom_ids.txt`**: アップロード済みポストIDのログ（重複投稿防止用）
+
+### プロジェクト管理ファイル
+- **`memo-spec.md`**: 仕様メモ（開発者用）
+- **`Todo.md`**: タスク管理
+- **`venv/` または `.venv/`**: Python仮想環境（Gitで除外、各環境で個別作成）
+- **`.github/copilot-instructions.md`**: このファイル - AI開発エージェント用ガイド
 
 ## 一般的なワークフロー
 
@@ -142,19 +151,35 @@ pip install -r requirements.txt
 
 ### フルパイプライン実行
 ```bash
-# GUI から実行（メインエントリーポイント）
+# GUI から実行（メインエントリーポイント - 推奨）
 python html_tobrogger.py
 # ボタンはスクリプトを順次起動、テキストウィジェットで出力を監視
 
 # または個別実行（デバッグ用）
+python cleaner.py           # HTMLクリーニング・メタデータ抽出
 python add_keywords.py      # キーワード注入
 python add_georss_point.py  # 位置情報注入
-python cleaner.py           # HTMLクリーニング・メタデータ抽出
 python phot_exif_watemark.py # EXIF削除・ウォーターマーク追加（オプション）
-python open_blogger.py      # BrowserでBlogger開き、BLOG_ID取得
 python image_preparer.py    # 画像リネーム・統合
+python open_blogger.py      # BrowserでBlogger開き、BLOG_ID取得
 python convert_atom.py      # Atomフィード生成
 python uploader.py          # Blogger API へのアップロード
+```
+
+### クイックスタートコマンド
+```bash
+# 新規セットアップ（初回のみ）
+python3 -m venv venv
+source venv/bin/activate  # Linux/Mac (Windows: venv\Scripts\activate)
+pip install -r requirements.txt
+
+# GUIアプリ起動（通常の使用）
+python html_tobrogger.py
+
+# 設定ファイル編集（GUIメニューからも可能）
+# - config.ini: 全般設定
+# - keywords.xml: キーワード定義
+# - georss_point.xml: 位置情報キャッシュ（自動更新）
 ```
 
 ### 単一ステージのテスト
@@ -181,24 +206,24 @@ python uploader.py          # Blogger API へのアップロード
 - **出力キャプチャ**: `process.stdout.read()`で非ブロッキングループ内（10ms ポーリング `root.after(10, update_timer)`）に出力をキャプチャ
 - **処理フロー定義**: プロセス間通信なし；フォルダ状態でのデータフローに依存
   ```python
-  pythonproccess = [['キーワード作成', 'add_keywords.py'],
+  pythonproccess = [['htmlクリーニング', 'cleaner.py'],
+                    ['キーワード作成', 'add_keywords.py'],
                     ['位置情報追加', 'add_georss_point.py'],
-                    ['htmlクリーニング', 'cleaner.py'],
-                    ['画像位置情報削除＆ウォーターマーク追加', 'phot_exif_watemark.py']]
-  pythonproccess_step5 = [['画像リンク設定', 'image_preparer.py'],
-                          ['Atomフィード生成', 'convert_atom.py']]
+                    ['画像位置情報削除＆ウォーターマーク追加', 'phot_exif_watemark.py'],
+                    ['画像リネーム', 'image_preparer.py']]
+  pythonproccess_step5 = [['Atomフィード生成', 'convert_atom.py']]
   pythonproccess_upload = [['アップロード', 'uploader.py']]
   ```
 - **メニューバー機能**: `config.ini`、`keywords.xml`、`georss_point.xml`を標準アプリで開く（クロスプラットフォーム対応）
 - **操作ボタン構成**:
   1. **操作１**: `reports/` フォルダを開く
-  2. **操作２**: メディアマネージャー（`media-man/`）フォルダを開く  
+  2. **操作２**: メディアマネージャー保存先フォルダを開く（プロジェクトルート、`Blogger メディア マネージャー_*.html`の保存先）
   3. **操作３**: メイン処理実行（`pythonproccess`リスト）
   4. **操作４**: Bloggerメディアマネージャーをブラウザで開く + BLOG_ID抽出
   5. **操作５**: 画像リンク設定 & Atomフィード生成（`pythonproccess_step5`リスト）
   6. **操作６**: Bloggerへアップロード（`pythonproccess_upload`）
 - **起動時警告（仕様変更D）**: `token.pickle` がない場合は警告を出す（ただし操作は続行可能）
-- **フォルダクリア警告（仕様変更D）**: ユーザーが「フォルダを開く」ボタンを押時に、`reports/`、`work/`、`image/`、`ready_load/` に ファイルがあれば確認ダイアログを表示。OK で全削除（`*.xml`、`finished/` は除外）
+- **フォルダクリア警告（仕様変更D）**: ユーザーが「フォルダを開く」ボタンを押時に、`reports/`、`work/`、`image/` に ファイルがあれば確認ダイアログを表示。OK で全削除（`*.xml`、`finished/` は除外）
 
 ### 設定管理 (config.py)
 - `config.ini`経由でセクションベースの組織化で一元管理（コメント`#`削除、引用符除去を自動処理）
@@ -208,9 +233,11 @@ python uploader.py          # Blogger API へのアップロード
 
 ## 外部依存関係
 - **Google APIs**: `google-auth-oauthlib`、`google-auth-httplib2`、`google-api-python-client` - Blogger API v3認証・投稿用
+  - ⚠️ **重要**: Blogger APIは30日間アクセスがないと警告メールが送信され、アクセスキーが削除される。定期的に使用すること
 - **HTML/XML処理**: `BeautifulSoup4` (`html.parser`エンジン) - HTMLパース、`xml.etree.ElementTree` - XML設定読み込み
 - **画像処理**: `Pillow (PIL)` - ウォーターマーク追加、`piexif` - EXIF削除
 - **位置情報**: `geopy` (Nominatim) - 地名→緯度経度変換（OpenStreetMap、レート制限1.1秒/リクエスト）
+  - **設計判断**: Google Geocoding APIではなくNominatim（OpenStreetMap）を使用する理由は、クレジットカード登録を避けるため
 - **形態素解析**: `janome` - 日本語地名抽出用
 - **GUI**: `tkinter` (標準ライブラリ) - デスクトップアプリインターフェース
 
@@ -220,7 +247,7 @@ python uploader.py          # Blogger API へのアップロード
 1. **HTML クリーニング時にコンテンツ削除**: 過度に積極的な正規表現置換；サンプルHTMLで最初にテストして検証してから本実行すること
 2. **画像URL がマッピングされない**: MediaManager HTMLフォーマット変更の可能性；ファイル名がリンクできなかった場合は「この画像ファイルが紐付けできませんでした」と一覧表示
    - ユーザーに「操作５から やり直すか」「アップロード後に手動修正するか」を選択させる
-3. **MediaManager HTML が複数存在**: `BloggerMediaManager_XXXX.html` が2つ以上ある場合は エラーとして次に進めない
+3. **MediaManager HTML が複数存在**: `Blogger メディア マネージャー_{ブログ名}.html` が2つ以上ある場合は エラーとして処理を中断し、ユーザーに正確なファイル（1つだけ）を残すようメッセージ表示
 4. **アップロード がサイレント失敗**: BLOG_IDが設定されていない、認証情報が無効、またはレート制限ヒット；実行前にこれらを確認し、エラー時は明示的なエラーメッセージを出力して中断
 5. **Nominatimレート制限違反**: 大量の地名処理時、1.1秒間隔を厳守（`time.sleep(1.1)`）。違反するとOpenStreetMapからブロックされる可能性あり
 

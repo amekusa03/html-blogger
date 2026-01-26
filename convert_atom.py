@@ -5,62 +5,73 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from bs4 import BeautifulSoup
+from config import get_config
 
 # --- 設定 ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
-INPUT_DIR = SCRIPT_DIR / 'ready_to_upload'     # cleaner.py の出力フォルダ
-OUTPUT_FILE = SCRIPT_DIR / 'feed.atom'            # 生成される Atom フィードファイル
-BLOG_TITLE = 'My Blog'              # ブログタイトル
-BLOG_URL = 'https://example.blogspot.com'  # ブログのURL
+INPUT_DIR = SCRIPT_DIR / get_config('READY_UPLOAD', 'OUTPUT_DIR', './ready_upload').lstrip('./')
+OUTPUT_DIR = SCRIPT_DIR / get_config('CONVERT_ATOM', 'OUTPUT_DIR', './ready_upload').lstrip('./')
+OUTPUT_FILE = OUTPUT_DIR / 'feed.atom'
+BLOG_TITLE = get_config('CONVERT_ATOM', 'BLOG_TITLE', 'My Blog')
+BLOG_URL = get_config('CONVERT_ATOM', 'BLOG_URL', 'https://example.blogspot.com')
 
 def extract_metadata(html_text, filepath=None):
-    """HTML テキストからメタデータを抽出"""
+    """HTML テキストからメタデータを抽出（キーワード、タイトル、日付、位置情報）
+    
+    プレーンテキスト形式から抽出：
+    - 1行目: キーワード,カンマ,区切り
+    - TITLE: タイトル文字列
+    - DATE: 2002-04-29
+    - LOCATION: 地域名 | 緯度 経度
+    """
     metadata = {
         'keywords': '',
         'title': '',
         'date': '',
-        'content': html_text
+        'content': html_text,
+        'location': None  # {'name': '', 'latitude': '', 'longitude': ''}
     }
     
-    # キーワード抽出（先頭にある場合）
-    kw_match = re.search(r'^([^<\n]+?)(?:\n|$)', html_text)
-    if kw_match and ',' in kw_match.group(1):
-        metadata['keywords'] = kw_match.group(1).strip()
-        # キーワード行を削除
-        html_text = html_text[len(kw_match.group(0)):].strip()
+    lines = html_text.split('\n')
+    remaining_lines = []
     
-    # タイトル抽出：reports/ フォルダの元ファイルから優先的に取得
-    metadata['title'] = ''
-    if filepath:
-        reports_filepath = Path(filepath).relative_to(SCRIPT_DIR)
-        reports_filepath = SCRIPT_DIR / 'reports' / reports_filepath.relative_to('ready_to_upload')
-        reports_filepath = reports_filepath.with_suffix('.htm')
-        if reports_filepath.exists():
-            try:
-                with open(str(reports_filepath), 'r', encoding='utf-8') as f:
-                    reports_html = f.read()
-                title_match = re.search(r'<title>(.*?)</title>', reports_html, flags=re.IGNORECASE)
-                if title_match:
-                    metadata['title'] = title_match.group(1).strip()
-            except:
-                pass
+    for line in lines:
+        line_stripped = line.strip()
+        
+        # キーワード抽出（1行目、タグがない行）
+        if not metadata['keywords'] and line_stripped and not line_stripped.startswith('<') and not line_stripped.startswith('TITLE:') and not line_stripped.startswith('DATE:') and not line_stripped.startswith('LOCATION:'):
+            metadata['keywords'] = line_stripped
+            continue
+        
+        # タイトル抽出（TITLE: で始まる行）
+        if line_stripped.startswith('TITLE:'):
+            metadata['title'] = line_stripped[6:].strip()  # "TITLE: " の後
+            continue
+        
+        # 日付抽出（DATE: で始まる行）
+        if line_stripped.startswith('DATE:'):
+            metadata['date'] = line_stripped[5:].strip()  # "DATE: " の後
+            continue
+        
+        # 位置情報抽出（LOCATION: で始まる行）
+        if line_stripped.startswith('LOCATION:'):
+            location_text = line_stripped[9:].strip()  # "LOCATION: " の後
+            parts = location_text.split('|')
+            if len(parts) == 2:
+                location_name = parts[0].strip()
+                coords = parts[1].strip().split()
+                if len(coords) == 2:
+                    metadata['location'] = {
+                        'name': location_name,
+                        'latitude': coords[0],
+                        'longitude': coords[1]
+                    }
+            continue
+        
+        # メタデータ行でない場合は本文として保持
+        remaining_lines.append(line)
     
-    # reports/ から見つからない場合は ready_to_upload/ から取得
-    if not metadata['title']:
-        title_match = re.search(r'<title>(.*?)</title>', html_text, flags=re.IGNORECASE)
-        if title_match:
-            metadata['title'] = title_match.group(1).strip()
-    
-    # タイトルタグを本文から削除
-    html_text = re.sub(r'<title>.*?</title>', '', html_text, flags=re.IGNORECASE)
-    
-    # 日付抽出
-    date_match = re.search(r'<time\s+datetime=["\'](.*?)["\']', html_text, flags=re.IGNORECASE)
-    if date_match:
-        metadata['date'] = date_match.group(1).strip()
-        html_text = re.sub(r'<time\s+datetime=["\'](.*?)["\'].*?</time>', '', html_text, flags=re.IGNORECASE)
-    
-    metadata['content'] = html_text.strip()
+    metadata['content'] = '\n'.join(remaining_lines).strip()
     return metadata
 
 def html_to_atom_entry(filepath, folder_name):
@@ -112,6 +123,20 @@ def html_to_atom_entry(filepath, folder_name):
             if keyword:
                 entry += f'    <category term="{escape_xml(keyword)}" />\n'
     
+    # 位置情報を追加（georss:pointがある場合）
+    if metadata.get('location'):
+        loc = metadata['location']
+        entry += f"""    <georss:point xmlns:georss="http://www.georss.org/georss">{loc['latitude']} {loc['longitude']}</georss:point>
+"""
+        # Blogger形式の位置情報も追加
+        if loc.get('name'):
+            entry += f"""    <blogger:location xmlns:blogger="http://www.blogger.com/atom/ns#">
+      <blogger:name>{escape_xml(loc['name'])}</blogger:name>
+      <blogger:latitude>{loc['latitude']}</blogger:latitude>
+      <blogger:longitude>{loc['longitude']}</blogger:longitude>
+    </blogger:location>
+"""
+    
     entry += """  </entry>
 """
     
@@ -134,6 +159,9 @@ def generate_atom_feed():
     if not os.path.exists(INPUT_DIR):
         print(f"エラー: {INPUT_DIR} フォルダが見つかりません。")
         return
+    
+    # 出力フォルダを作成
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     
     entries = []
     processed_count = 0

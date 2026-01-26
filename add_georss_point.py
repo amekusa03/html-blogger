@@ -286,27 +286,23 @@ def find_location_in_html(html_text, geo_data):
 
 def add_georss_tag_to_html(html_text, location_name, latitude, longitude):
     """
-    HTMLの<head>タグ内に<georss:point>と<georss:name>タグを注入
+    HTMLに <georss> タグで位置情報を追加
+    <time> タグの次に挿入される
     """
-    # 改行・タブを削除（安定性のため）
-    html_text = re.sub(r'[\r\n\t]+', '', html_text)
+    # <georss> タグを作成（name, point 両方を含む）
+    georss_tag = f'<georss><name>{location_name}</name><point>{latitude} {longitude}</point></georss>\n'
     
-    # 地名タグと座標タグを作成
-    georss_name_tag = f'<georss:name>{location_name}</georss:name>'
-    georss_point_tag = f'<georss:point>{latitude} {longitude}</georss:point>'
-    combined_tag = f'{georss_name_tag}{georss_point_tag}'
-    
-    # </head>タグの前に挿入
-    if '</head>' in html_text or '</HEAD>' in html_text:
-        # 大文字小文字を区別して置換
-        if '</head>' in html_text:
-            html_text = html_text.replace('</head>', f'{combined_tag}</head>')
-        else:
-            html_text = html_text.replace('</HEAD>', f'{combined_tag}</HEAD>')
+    # <time> タグを探して、その次の行に挿入
+    if re.search(r'</time>', html_text, re.IGNORECASE):
+        # </time> の直後に挿入
+        html_text = re.sub(r'(</time>)', r'\1\n' + georss_tag, html_text, count=1, flags=re.IGNORECASE)
     else:
-        # </head>タグが見つからない場合は警告を出して、タグの末尾に追加
-        print(f"  -> 警告: </head>タグが見つかりません。最後に追加します。")
-        html_text += combined_tag
+        # <time> がない場合は <title> の後
+        if re.search(r'</title>', html_text, re.IGNORECASE):
+            html_text = re.sub(r'(</title>)', r'\1\n' + georss_tag, html_text, count=1, flags=re.IGNORECASE)
+        else:
+            print(f"  -> 警告: <title>, <time> タグが見つかりません。ファイル先頭に追加します。")
+            html_text = georss_tag + html_text
     
     return html_text
 

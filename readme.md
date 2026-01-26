@@ -169,7 +169,7 @@ MIT License - 詳細は [LICENSE](LICENSE) を参照
 
 ## 開発支援
 
-Gemini (Google AI) の支援を受けて開発されました。
+GitHub Copilot (Claude Sonnet 4.5) の支援を受けて開発されました。
 
 ## サポート
 
