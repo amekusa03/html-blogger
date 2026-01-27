@@ -6,9 +6,21 @@ uploader.pyのマッピング機能と同様にready_upload内のhtmlの画像�
 
 import os
 import re
+import logging
 from pathlib import Path
 from bs4 import BeautifulSoup
 from config import get_config
+
+# logging設定
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('link_html.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # --- 設定 ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -40,23 +52,23 @@ def load_media_mapping():
     # media-man フォルダ内の Blogger メディア マネージャー_*.html を検索
     media_man_dir = SCRIPT_DIR / 'media-man'
     if not media_man_dir.exists():
-        print(f"警告: media-man フォルダが見つかりません。")
+        logger.warning("media-man フォルダが見つかりません。")
         return mapping
     
     media_files = list(media_man_dir.glob('Blogger メディア マネージャー_*.html'))
     
     if len(media_files) == 0:
-        print(f"警告: Blogger メディア マネージャー_*.html が見つかりません。")
+        logger.warning("Blogger メディア マネージャー_*.html が見つかりません。")
         return mapping
     elif len(media_files) > 1:
-        print(f"エラー: Blogger メディア マネージャー_*.html が複数あります。")
-        print("以下のファイルのうち、正しいファイル1つだけを残してください：")
+        logger.error("Blogger メディア マネージャー_*.html が複数あります。")
+        logger.error("以下のファイルのうち、正しいファイル1つだけを残してください：")
         for f in media_files:
-            print(f"  - {f.name}")
+            logger.error(f"  - {f.name}")
         return None
     
     media_file = media_files[0]
-    print(f"メディアマネージャーファイルを読み込んでいます: {media_file.name}")
+    logger.info(f"メディアマネージャーファイルを読み込んでいます: {media_file.name}")
     
     # ファイルをテキストとして読み込み、正規表現でURLを抽出
     with open(str(media_file), 'r', encoding='utf-8') as f:
@@ -73,11 +85,11 @@ def load_media_mapping():
             # 完全なURLをマッピング（Blogger APIに必要）
             mapping[filename] = url
     
-    print(f"画像マッピング: {len(mapping)} 個の画像URLを読み込みました。")
+    logger.info(f"画像マッピング: {len(mapping)} 個の画像URLを読み込みました。")
     if mapping:
-        print("マッピング例:")
+        logger.debug("マッピング例:")
         for i, (filename, url) in enumerate(list(mapping.items())[:3]):
-            print(f"  {filename} -> {url[:80]}...")
+            logger.debug(f"  {filename} -> {url[:80]}...")
     return mapping
 
 def resize_logic(w, h):
@@ -135,24 +147,24 @@ def link_html():
     """ready_upload内のすべてのHTMLファイルの画像リンクを更新"""
     
     if not READY_UPLOAD_DIR.exists():
-        print(f"エラー: フォルダが存在しません: {READY_UPLOAD_DIR}")
+        logger.error(f"フォルダが存在しません: {READY_UPLOAD_DIR}")
         return
     
     # メディアマッピング読み込み
     media_map = load_media_mapping()
     if media_map is None:
-        print("エラー: メディアマネージャーファイルが複数あるため処理を中断します。")
+        logger.error("メディアマネージャーファイルが複数あるため処理を中断します。")
         return
     
     if not media_map:
-        print("警告: 画像マッピングが空です。処理を続行しますが、画像URLは更新されません。")
+        logger.warning("画像マッピングが空です。処理を続行しますが、画像URLは更新されません。")
     
-    print(f"\nready_uploadフォルダのHTMLファイルを処理しています...")
+    logger.info("ready_uploadフォルダのHTMLファイルを処理しています...")
     
     html_files = list(READY_UPLOAD_DIR.glob('*.html')) + list(READY_UPLOAD_DIR.glob('*.htm'))
     
     if not html_files:
-        print(f"HTMLファイルが見つかりません: {READY_UPLOAD_DIR}")
+        logger.warning(f"HTMLファイルが見つかりません: {READY_UPLOAD_DIR}")
         return
     
     total_updated = 0
@@ -162,19 +174,19 @@ def link_html():
         updated_count, unmapped_files = process_html_file(html_file, media_map)
         total_updated += updated_count
         all_unmapped.extend(unmapped_files)
-        print(f"  処理完了: {html_file.name} ({updated_count} 個の画像を更新)")
+        logger.info(f"  処理完了: {html_file.name} ({updated_count} 個の画像を更新)")
     
-    print("-" * 30)
-    print(f"完了しました。合計 {total_updated} 個の画像URLを更新しました。")
+    logger.info("-" * 30)
+    logger.info(f"完了しました。合計 {total_updated} 個の画像URLを更新しました。")
     
     # マッピング失敗した画像を一覧表示
     if all_unmapped:
-        print(f"\n警告: 以下の {len(all_unmapped)} 個の画像ファイルが紐付けできませんでした:")
+        logger.warning(f"以下の {len(all_unmapped)} 個の画像ファイルが紐付けできませんでした:")
         for filename in set(all_unmapped):
-            print(f"  - {filename}")
-        print("\n対処方法:")
-        print("  1. 操作５から やり直す")
-        print("  2. アップロード後に手動で修正する")
+            logger.warning(f"  - {filename}")
+        logger.warning("対処方法:")
+        logger.warning("  1. 操作５から やり直す")
+        logger.warning("  2. アップロード後に手動で修正する")
 
 if __name__ == '__main__':
     link_html()
