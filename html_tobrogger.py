@@ -8,8 +8,20 @@ import datetime
 import platform
 import shutil
 import webbrowser
+import logging
 from pathlib import Path
 from config import get_config
+
+# --- logging設定 ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('html_tobrogger.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # --- URL定数 ---
 BLOGGER_SIGNIN_URL = 'https://www.blogger.com/go/signin'  # ブロガーサインインURL
@@ -31,7 +43,7 @@ def open_config_file():
             subprocess.Popen(['start', str(config_file)], shell=True)
         else:  # Linux
             subprocess.Popen(['xdg-open', str(config_file)])
-        print(f"config.iniを開きました: {config_file}")
+        logger.info(f"config.iniを開きました: {config_file}")
     except Exception as e:
         messagebox.showerror("エラー", f"ファイルを開く際にエラーが発生しました: {e}")
 
@@ -50,7 +62,7 @@ def open_keywords_file():
             subprocess.Popen(['start', str(keywords_file)], shell=True)
         else:  # Linux
             subprocess.Popen(['xdg-open', str(keywords_file)])
-        print(f"keywords.xmlを開きました: {keywords_file}")
+        logger.info(f"keywords.xmlを開きました: {keywords_file}")
     except Exception as e:
         messagebox.showerror("エラー", f"ファイルを開く際にエラーが発生しました: {e}")
 
@@ -69,7 +81,7 @@ def open_georss_file():
             subprocess.Popen(['start', str(georss_file)], shell=True)
         else:  # Linux
             subprocess.Popen(['xdg-open', str(georss_file)])
-        print(f"georss_point.xmlを開きました: {georss_file}")
+        logger.info(f"georss_point.xmlを開きました: {georss_file}")
     except Exception as e:
         messagebox.showerror("エラー", f"ファイルを開く際にエラーが発生しました: {e}")
 
@@ -88,20 +100,20 @@ def open_reports_folder():
     ready_upload_dir = script_dir / './ready_upload'
     
     # デバッグ：確認するフォルダを表示
-    print(f"チェック対象フォルダ:")
-    print(f"  reports_dir: {reports_dir}")
-    print(f"  work_dir: {work_dir}")
-    print(f"  ready_upload_dir: {ready_upload_dir}")
+    logger.debug(f"チェック対象フォルダ:")
+    logger.debug(f"  reports_dir: {reports_dir}")
+    logger.debug(f"  work_dir: {work_dir}")
+    logger.debug(f"  ready_upload_dir: {ready_upload_dir}")
     
     folders_to_check = [reports_dir, work_dir, ready_upload_dir]
     
     # バックアップファイルを除外して実ファイルがあるかチェック（再帰的）
     def has_real_files(folder):
         if not folder.exists():
-            print(f"  {folder} は存在しません")
+            logger.debug(f"  {folder} は存在しません")
             return False
         
-        print(f"  {folder} をチェック中...")
+        logger.debug(f"  {folder} をチェック中...")
         try:
             for item in folder.rglob('*'):
                 # finishedフォルダ配下は除外
@@ -112,10 +124,10 @@ def open_reports_folder():
                     continue
                 # 実ファイルが見つかった
                 if item.is_file():
-                    print(f"    -> 実ファイル検出: {item.relative_to(folder)}")
+                    logger.debug(f"    -> 実ファイル検出: {item.relative_to(folder)}")
                     return True
         except Exception as e:
-            print(f"    エラー: {e}")
+            logger.error(f"    エラー: {e}", exc_info=True)
             pass
         
         return False
@@ -136,9 +148,9 @@ def open_reports_folder():
                             item.unlink()
                         elif item.is_dir() and item.name != 'finished':
                             shutil.rmtree(str(item), ignore_errors=True)
-            print("作業フォルダをクリアしました")
+            logger.info("作業フォルダをクリアしました")
         else:
-            print("キャンセルしました")
+            logger.info("キャンセルしました")
             return
     
     # reportsフォルダを開く
@@ -150,7 +162,7 @@ def open_reports_folder():
             subprocess.Popen(['explorer', str(reports_dir)])
         else:  # Linux
             subprocess.Popen(['xdg-open', str(reports_dir)])
-        print(f"reportsフォルダを開きました: {reports_dir}")
+        logger.info(f"reportsフォルダを開きました: {reports_dir}")
     except Exception as e:
         messagebox.showerror("エラー", f"フォルダを開く際にエラーが発生しました: {e}")
 
@@ -163,7 +175,7 @@ def open_media_manager_folder():
     # ブラウザでメディアマネージャーURLを開く
     try:
         webbrowser.open(MEDIA_MANAGER_URL)
-        print(f"メディアマネージャーをブラウザで開きました: {MEDIA_MANAGER_URL}")
+        logger.info(f"メディアマネージャーをブラウザで開きました: {MEDIA_MANAGER_URL}")
     except Exception as e:
         messagebox.showerror("エラー", f"ブラウザを開く際にエラーが発生しました: {e}")
     
@@ -176,7 +188,7 @@ def open_media_manager_folder():
             subprocess.Popen(['explorer', str(media_dir)])
         else:  # Linux
             subprocess.Popen(['xdg-open', str(media_dir)])
-        print(f"media_manager フォルダを開きました: {media_dir}")
+        logger.info(f"media_manager フォルダを開きました: {media_dir}")
     except Exception as e:
         messagebox.showerror("エラー", f"フォルダを開く際にエラーが発生しました: {e}")
 
@@ -189,7 +201,7 @@ def open_image_folder():
     # ブラウザでブロガーサインインURLを開く
     try:
         webbrowser.open(BLOGGER_SIGNIN_URL)
-        print(f"ブロガーサインインをブラウザで開きました: {BLOGGER_SIGNIN_URL}")
+        logger.info(f"ブロガーサインインをブラウザで開きました: {BLOGGER_SIGNIN_URL}")
     except Exception as e:
         messagebox.showerror("エラー", f"ブラウザを開く際にエラーが発生しました: {e}")
     
@@ -202,7 +214,7 @@ def open_image_folder():
             subprocess.Popen(['explorer', str(image_dir)])
         else:  # Linux
             subprocess.Popen(['xdg-open', str(image_dir)])
-        print(f"ready_upload フォルダを開きました: {image_dir}")
+        logger.info(f"ready_upload フォルダを開きました: {image_dir}")
     except Exception as e:
         messagebox.showerror("エラー", f"フォルダを開く際にエラーが発生しました: {e}")
 
@@ -266,7 +278,7 @@ config_edit_menu.add_command(label="georss_point.xml", command=open_georss_file)
 
 # ボタンが押されるとここが呼び出される
 def StartEntryValue(btn_text):
-    print(f"ボタン押下: {btn_text}")
+    logger.info(f"ボタン押下: {btn_text}")
     
     # 操作１：フォルダを開く
     if "フォルダを" in btn_text and "開く" in btn_text:
@@ -315,7 +327,7 @@ def start_step5():
     # ブラウザでブロガーサインインURLを開く
     try:
         webbrowser.open(BLOGGER_SIGNIN_URL)
-        print(f"ブロガーサインインをブラウザで開きました: {BLOGGER_SIGNIN_URL}")
+        logger.info(f"ブロガーサインインをブラウザで開きました: {BLOGGER_SIGNIN_URL}")
     except Exception as e:
         messagebox.showerror("エラー", f"ブラウザを開く際にエラーが発生しました: {e}")
         
@@ -338,7 +350,7 @@ def start_step5():
         return
     
     blog_id = match.group(1)
-    print(f"抽出したBLOG_ID: {blog_id}")
+    logger.info(f"抽出したBLOG_ID: {blog_id}")
     
     # 続けて操作５の処理を実行
     text_widget.delete('1.0', Tkinter.END)
