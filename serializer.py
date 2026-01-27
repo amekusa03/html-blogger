@@ -10,8 +10,20 @@ HTML内の画像パスも同時に更新する
 import os
 import re
 import shutil
+import logging
 from pathlib import Path
 from config import get_config
+
+# logging設定
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('serializer.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # --- 設定 ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -30,7 +42,7 @@ def get_current_counter():
                 counter_hex = f.read().strip()
                 return int(counter_hex, 16)
         except (ValueError, IOError):
-            print(f"警告: {COUNTER_FILE} の読み込みに失敗しました。カウンターを1から開始します。")
+            logger.warning(f"{COUNTER_FILE} の読み込みに失敗しました。カウンターを1から開始します。")
             return 1
     return 1
 
@@ -40,7 +52,7 @@ def save_counter(counter_value):
         with open(COUNTER_FILE, 'w') as f:
             f.write(f'{counter_value:04X}')
     except IOError as e:
-        print(f"警告: カウンターの保存に失敗しました: {e}")
+        logger.warning(f"カウンターの保存に失敗しました: {e}")
 
 def update_html_image_paths(html_content, counter_str, folder_name):
     """HTML内の画像パスをシリアライズされたファイル名に更新"""
@@ -63,13 +75,13 @@ def update_html_image_paths(html_content, counter_str, folder_name):
 def serialize_files():
     # 出力フォルダがなければ作成
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"作成しました: {OUTPUT_DIR}")
+    logger.info(f"作成しました: {OUTPUT_DIR}")
 
-    print("ファイルのシリアライズ処理を開始します...")
+    logger.info("ファイルのシリアライズ処理を開始します...")
 
     # 前回の続きからカウンター開始
     current_counter = get_current_counter()
-    print(f"カウンター開始値: {current_counter:04X}")
+    logger.info(f"カウンター開始值: {current_counter:04X}")
     
     total_files = 0
 
@@ -88,7 +100,7 @@ def serialize_files():
         # カウンターを使用（前回の続きから）
         counter_str = f'{current_counter:04X}'  # 4桁16進数
         
-        print(f"\n--- フォルダ: {folder_name} (カウンタ: {counter_str}) ---")
+        logger.info(f"\n--- フォルダ: {folder_name} (カウンタ: {counter_str}) ---")
         
         folder_file_count = 0
         
@@ -117,23 +129,23 @@ def serialize_files():
                         
                         folder_file_count += 1
                         total_files += 1
-                        print(f"  [{total_files}] {src_file.name} -> {new_filename}")
+                        logger.info(f"  [{total_files}] {src_file.name} -> {new_filename}")
                     except Exception as e:
-                        print(f"  エラー: {src_file} のコピーに失敗しました。 {e}")
+                        logger.error(f"  {src_file} のコピーに失敗しました。 {e}", exc_info=True)
         
         if folder_file_count > 0:
-            print(f"  完了: {folder_file_count} 個のファイルを処理しました")
+            logger.info(f"  完了: {folder_file_count} 個のファイルを処理しました")
             # 次のフォルダ用にカウンターをインクリメント
             current_counter += 1
         else:
-            print(f"  警告: このフォルダに対象ファイルがありません")
+            logger.warning(f"  このフォルダに対象ファイルがありません")
 
     # 次回用のカウンター値を保存
     save_counter(current_counter)
-    print(f"次回カウンター値: {current_counter:04X}")
+    logger.info(f"次回カウンター値: {current_counter:04X}")
     
-    print("-" * 50)
-    print(f"完了しました。{len(all_folders)} フォルダ、合計 {total_files} 個のファイルを {OUTPUT_DIR} にシリアライズしました。")
+    logger.info("-" * 50)
+    logger.info(f"完了しました。{len(all_folders)} フォルダ、合計 {total_files} 個のファイルを {OUTPUT_DIR} にシリアライズしました。")
 
 if __name__ == '__main__':
     serialize_files()
