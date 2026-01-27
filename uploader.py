@@ -9,14 +9,16 @@ from bs4 import BeautifulSoup
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
+from config import get_config
 
 # --- 設定 ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
-BLOG_ID = 'あなたのブログID'
-LOG_FILE = SCRIPT_DIR / 'uploaded_atom_ids.txt'
-SCOPES = ['https://www.googleapis.com/auth/blogger']
-DELAY_SECONDS = 15      # 安全のため15秒
-MAX_POSTS_PER_RUN = 5   # 最初は5件でテスト
+BLOG_ID = get_config('UPLOADER', 'BLOG_ID')
+print(f"デバッグ: 読み込まれたBLOG_ID = {BLOG_ID}")
+LOG_FILE = SCRIPT_DIR / get_config('UPLOADER', 'LOG_FILE', 'uploaded_atom_ids.txt')
+SCOPES = [get_config('UPLOADER', 'SCOPES', 'https://www.googleapis.com/auth/blogger')]
+DELAY_SECONDS = float(get_config('UPLOADER', 'DELAY_SECONDS', '1.1'))
+MAX_POSTS_PER_RUN = int(get_config('UPLOADER', 'MAX_POSTS_PER_RUN', '1'))
 
 def get_blogger_service():
     """Google Blogger API サービスオブジェクトを取得"""
@@ -90,10 +92,10 @@ def upload_from_ready_to_upload():
         print(error_msg)
         sys.exit(1)
     
-    # Atom ファイルの存在確認
-    feed_file = SCRIPT_DIR / 'feed.atom'
+    # Atom ファイルの存在確認（ready_upload フォルダ内）
+    feed_file = SCRIPT_DIR / get_config('READY_UPLOAD', 'OUTPUT_DIR', './ready_upload').lstrip('./') / 'feed.atom'
     if not feed_file.exists():
-        raise FileNotFoundError('feed.atom が見つかりません。Blogger からエクスポートした Atom ファイルを配置してください。')
+        raise FileNotFoundError(f'feed.atom が見つかりません。convert_atom.py を実行して {feed_file} を生成してください。')
     
     if LOG_FILE.exists():
         try:
@@ -107,7 +109,11 @@ def upload_from_ready_to_upload():
         print(f'新規ログファイルを作成します: {LOG_FILE}')
 
     # Atom ファイル解析
-    ns = {'atom': 'http://www.w3.org/2005/Atom', 'blogger': 'http://schemas.google.com/blogger/2018'}
+    ns = {
+        'atom': 'http://www.w3.org/2005/Atom',
+        'blogger': 'http://www.blogger.com/atom/ns#',
+        'georss': 'http://www.georss.org/georss'
+    }
     try:
         tree = ET.parse(str(feed_file))
     except ET.ParseError as e:
@@ -135,19 +141,64 @@ def upload_from_ready_to_upload():
         content = entry.find('atom:content', ns).text or ""
         published = entry.find('atom:published', ns).text
 
-        # 本文（content）からラベルを抜き出し
-        labels = extract_labels_from_content(content)
+        # ラベルを<category>タグから抽出（Atom形式）
+        labels = []
+        for category in entry.findall('atom:category', ns):
+            term = category.get('term')
+            if term:
+                labels.append(term)
+
+        # 位置情報を<blogger:location>から抽出
+        location_data = None
+        blogger_location = entry.find('blogger:location', ns)
+        if blogger_location is not None:
+            name_elem = blogger_location.find('blogger:name', ns)
+            lat_elem = blogger_location.find('blogger:latitude', ns)
+            lng_elem = blogger_location.find('blogger:longitude', ns)
+            
+            if name_elem is not None and lat_elem is not None and lng_elem is not None:
+                location_data = {
+                    'name': name_elem.text.strip(),
+                    'lat': float(lat_elem.text),
+                    'lng': float(lng_elem.text)
+                }
 
         body = {
             'kind': 'blogger#post',
             'title': title,
             'content': content,
-            'labels': labels,  # ← ここでラベル（リスト形式）を渡す
+            'labels': labels,
             'blog': {'id': BLOG_ID},
+            'published': published
         }
-    
+
+        # 位置情報があれば追加
+        if location_data:
+            body['location'] = location_data
+
+        print(f"\n=== アップロード開始 ===")
+        print(f"タイトル: {title}")
+        print(f"公開日: {published}")
+        print(f"BLOG_ID: {BLOG_ID}")
+        print(f"ラベル: {labels}")
+        if location_data:
+            print(f"場所: {location_data['name']} ({location_data['lat']}, {location_data['lng']})")
+        
+        # デバッグ: 送信するbodyデータを全て表示
+        import json
+        print(f"\n【デバッグ】送信するAPIリクエストボディ:")
+        print(json.dumps(body, indent=2, ensure_ascii=False))
+        
         try:
-            response = service.posts().insert(blogId=BLOG_ID, body=body, isDraft=True).execute()
+            # 【本番モード】実際にBlogger APIへアップロード
+            TEST_MODE = False  # 本番実行
+            
+            if TEST_MODE:
+                print("【テストモード】API呼び出しをスキップします")
+                response = {'id': 'TEST_POST_ID', 'url': 'https://test.url'}
+            else:
+                response = service.posts().insert(blogId=BLOG_ID, body=body, isDraft=True).execute()
+            
             try:
                 with open(str(LOG_FILE), 'a') as f:
                     f.write(f"{eid}\n")
@@ -159,12 +210,16 @@ def upload_from_ready_to_upload():
             time.sleep(DELAY_SECONDS)
         except Exception as e:
             error_count += 1
-            error_msg = f"エラー発生 (タイトル: {title}): {e}"
+            error_msg = f"[エラー] (タイトル: {title}): {e}"
             print(error_msg)
-            # 【重大エラー】アップロード失敗時は明示的に中断
-            if error_count > 0:
-                print("処理を中止します。")
-                sys.exit(1)
+            # エラーがあっても処理を継続してログを出力
+
+    # 処理完了サマリー
+    print(f"\n=== 処理完了 ===")
+    print(f"成功: {count}件")
+    print(f"エラー: {error_count}件")
+    if error_count > 0:
+        print("エラーが発生したポストがあります。ログを確認してください。")
 
 if __name__ == '__main__':
     upload_from_ready_to_upload()

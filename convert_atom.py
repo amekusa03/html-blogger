@@ -24,6 +24,8 @@ def extract_metadata(html_text, filepath=None):
     - DATE: 2002-04-29
     - LOCATION: 地域名 | 緯度 経度
     """
+    from bs4 import BeautifulSoup
+    
     metadata = {
         'keywords': '',
         'title': '',
@@ -32,25 +34,65 @@ def extract_metadata(html_text, filepath=None):
         'location': None  # {'name': '', 'latitude': '', 'longitude': ''}
     }
     
+    # 【優先】HTMLタグからメタデータを抽出
+    soup = BeautifulSoup(html_text, 'html.parser')
+    
+    # <title>タグから抽出
+    title_tag = soup.find('title')
+    if title_tag:
+        title_text = title_tag.get_text(strip=True)
+        if title_text:  # 空文字列でない場合のみ設定
+            metadata['title'] = title_text
+    
+    # <title>が空の場合は<h1>〜<h9>からフォールバック
+    if not metadata['title']:
+        for i in range(1, 10):
+            h_tag = soup.find(f'h{i}')
+            if h_tag:
+                h_text = h_tag.get_text(strip=True)
+                if h_text:
+                    metadata['title'] = h_text
+                    break
+    
+    # <search>タグから抽出
+    search_tag = soup.find('search')
+    if search_tag:
+        metadata['keywords'] = search_tag.get_text(strip=True)
+    
+    # <time datetime>属性から抽出
+    time_tag = soup.find('time')
+    if time_tag and time_tag.get('datetime'):
+        metadata['date'] = time_tag.get('datetime')
+    
+    # <georss>タグから位置情報を抽出
+    georss_tag = soup.find('georss')
+    if georss_tag:
+        name_tag = georss_tag.find('name')
+        point_tag = georss_tag.find('point')
+        if name_tag and point_tag:
+            coords = point_tag.get_text(strip=True).split()
+            if len(coords) == 2:
+                metadata['location'] = {
+                    'name': name_tag.get_text(strip=True),
+                    'latitude': coords[0],
+                    'longitude': coords[1]
+                }
+    
+    # 【フォールバック】プレーンテキスト形式から抽出（HTMLタグで見つからなかった場合のみ）
     lines = html_text.split('\n')
     remaining_lines = []
     
     for line in lines:
         line_stripped = line.strip()
         
-        # キーワード抽出（1行目、タグがない行）
-        if not metadata['keywords'] and line_stripped and not line_stripped.startswith('<') and not line_stripped.startswith('TITLE:') and not line_stripped.startswith('DATE:') and not line_stripped.startswith('LOCATION:'):
-            metadata['keywords'] = line_stripped
-            continue
-        
         # タイトル抽出（TITLE: で始まる行）
-        if line_stripped.startswith('TITLE:'):
-            metadata['title'] = line_stripped[6:].strip()  # "TITLE: " の後
+        if not metadata['title'] and line_stripped.startswith('TITLE:'):
+            metadata['title'] = line_stripped[6:].strip()
             continue
         
         # 日付抽出（DATE: で始まる行）
-        if line_stripped.startswith('DATE:'):
-            metadata['date'] = line_stripped[5:].strip()  # "DATE: " の後
+        if not metadata['date'] and line_stripped.startswith('DATE:'):
+            metadata['date'] = line_stripped[5:].strip()
             continue
         
         # 位置情報抽出（LOCATION: で始まる行）
@@ -71,7 +113,15 @@ def extract_metadata(html_text, filepath=None):
         # メタデータ行でない場合は本文として保持
         remaining_lines.append(line)
     
-    metadata['content'] = '\n'.join(remaining_lines).strip()
+    # 本文は<body>タグの中身のみを抽出
+    body_tag = soup.find('body')
+    if body_tag:
+        # <body>内のHTMLを文字列として取得（<body>タグ自体は除外）
+        metadata['content'] = ''.join(str(child) for child in body_tag.children).strip()
+    else:
+        # <body>タグがない場合はフォールバック（プレーンテキスト）
+        metadata['content'] = '\n'.join(remaining_lines).strip()
+    
     return metadata
 
 def html_to_atom_entry(filepath, folder_name):
@@ -85,6 +135,11 @@ def html_to_atom_entry(filepath, folder_name):
     
     metadata = extract_metadata(html_text, filepath)
     
+    # デバッグ出力
+    from pathlib import Path
+    filepath_obj = Path(filepath)
+    print(f"デバッグ: ファイル={filepath_obj.name}, タイトル='{metadata['title']}', キーワード='{metadata['keywords']}'")
+    
     # タイトルが見つからない場合はフォルダ名を使用
     if not metadata['title']:
         metadata['title'] = folder_name
@@ -92,14 +147,8 @@ def html_to_atom_entry(filepath, folder_name):
     # 日付が見つからない場合はファイルの更新日を使用
     if not metadata['date']:
         mtime = os.path.getmtime(filepath)
-        metadata['date'] = datetime.fromtimestamp(mtime).isoformat()
-    else:
-        # YYYY-MM-DD 形式を ISO 形式に変換
-        try:
-            date_obj = datetime.strptime(metadata['date'], '%Y-%m-%d')
-            metadata['date'] = date_obj.isoformat()
-        except:
-            pass
+        metadata['date'] = datetime.fromtimestamp(mtime).strftime('%Y-%m-%d')
+    # 日付形式は YYYY-MM-DD のまま保持（ISO変換しない）
     
     # エントリID生成（一意性を保証）
     entry_id = f"tag:blogger.com,2013:post.{uuid.uuid5(uuid.NAMESPACE_DNS, filepath).hex}"
@@ -123,14 +172,11 @@ def html_to_atom_entry(filepath, folder_name):
             if keyword:
                 entry += f'    <category term="{escape_xml(keyword)}" />\n'
     
-    # 位置情報を追加（georss:pointがある場合）
+    # 位置情報を追加（Blogger形式のみ）
     if metadata.get('location'):
         loc = metadata['location']
-        entry += f"""    <georss:point xmlns:georss="http://www.georss.org/georss">{loc['latitude']} {loc['longitude']}</georss:point>
-"""
-        # Blogger形式の位置情報も追加
         if loc.get('name'):
-            entry += f"""    <blogger:location xmlns:blogger="http://www.blogger.com/atom/ns#">
+            entry += f"""    <blogger:location>
       <blogger:name>{escape_xml(loc['name'])}</blogger:name>
       <blogger:latitude>{loc['latitude']}</blogger:latitude>
       <blogger:longitude>{loc['longitude']}</blogger:longitude>
@@ -188,7 +234,7 @@ def generate_atom_feed():
     
     # Atom フィードヘッダ
     atom_header = f"""<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:blogger="http://www.blogger.com/atom/ns#" xmlns:georss="http://www.georss.org/georss">
   <title>{escape_xml(BLOG_TITLE)}</title>
   <link href="{BLOG_URL}" />
   <id>tag:blogger.com,2013:blog</id>

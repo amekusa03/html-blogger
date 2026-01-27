@@ -103,7 +103,7 @@ MEDIA_MANAGER_FILE = get_config('UPLOADER', 'MEDIA_MANAGER_FILE', DEFAULTS.get('
 LOG_FILE = get_config('UPLOADER', 'LOG_FILE', DEFAULTS.get('LOG_FILE'))
 SCOPES_STR = get_config('UPLOADER', 'SCOPES', DEFAULTS.get('SCOPES'))
 SCOPES = [s.strip() for s in SCOPES_STR.split(',')]
-DELAY_SECONDS = int(get_config('UPLOADER', 'DELAY_SECONDS', DEFAULTS.get('DELAY_SECONDS')))
+DELAY_SECONDS = float(get_config('UPLOADER', 'DELAY_SECONDS', DEFAULTS.get('DELAY_SECONDS')))  # floatに変更
 MAX_POSTS_PER_RUN = int(get_config('UPLOADER', 'MAX_POSTS_PER_RUN', DEFAULTS.get('MAX_POSTS_PER_RUN')))
 
 def open_file_with_default_app(filepath):
