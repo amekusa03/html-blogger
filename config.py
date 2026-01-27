@@ -3,6 +3,18 @@ import os
 import sys
 import configparser
 import subprocess
+import logging
+
+# --- logging設定 ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('config.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # --------------------------------------------------
 # configparser の宣言と config.ini の読み込み
@@ -11,13 +23,13 @@ config_ini = configparser.ConfigParser()
 
 CONFIG_FILE = 'config.ini'
 if not os.path.exists(CONFIG_FILE):
-    print(f'エラー: {CONFIG_FILE} が見つかりません。')
+    logger.error(f'{CONFIG_FILE} が見つかりません。')
     sys.exit(1)
 
 try:
     config_ini.read(CONFIG_FILE, encoding='utf-8')
 except Exception as e:
-    print(f'エラー: {CONFIG_FILE} の読み込みに失敗しました: {e}')
+    logger.error(f'{CONFIG_FILE} の読み込みに失敗しました: {e}', exc_info=True)
     sys.exit(1)
 
 
@@ -62,7 +74,7 @@ def get_config(section, key, default=None):
         defaults_key = f'{section.upper()}_{key}'.lower()
         if defaults_key in DEFAULTS:
             return DEFAULTS[defaults_key]
-        print(f'警告: [{section}] {key} が見つかりません。デフォルト値を使用します。')
+        logger.warning(f'[{section}] {key} が見つかりません。デフォルト値を使用します。')
         return None
 
 
@@ -115,7 +127,7 @@ def open_file_with_default_app(filepath):
     elif sys.platform.startswith('linux'): # Linux
         subprocess.call(['xdg-open', filepath])
     else:
-        print(f"未対応のOS: {sys.platform}")
+        logger.error(f"未対応のOS: {sys.platform}")
 
 def open_keywords_app():
     """keywords.xml を標準アプリで開く"""
@@ -123,7 +135,7 @@ def open_keywords_app():
     if os.path.exists(xml_path):
         open_file_with_default_app(xml_path)
     else:
-        print(f'エラー: {xml_path} が見つかりません。')
+        logger.error(f'{xml_path} が見つかりません。')
 
 def open_config_file():
     """config.ini を標準アプリで開く"""
@@ -131,7 +143,7 @@ def open_config_file():
     if os.path.exists(config_path):
         open_file_with_default_app(config_path)
     else:
-        print(f'エラー: {config_path} が見つかりません。') 
+        logger.error(f'{config_path} が見つかりません。') 
         
 def open_folder(path):
     """指定フォルダをファイルマネージャで開く"""
@@ -139,4 +151,4 @@ def open_folder(path):
     if os.path.exists(abs_path) and os.path.isdir(abs_path):
         open_file_with_default_app(abs_path)
     else:
-        print(f'エラー: {abs_path} が見つかりません。')
+        logger.error(f'{abs_path} が見つかりません。')
