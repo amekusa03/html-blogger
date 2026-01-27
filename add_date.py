@@ -4,8 +4,20 @@ import re
 import unicodedata
 import calendar
 import sys
+import logging
 from pathlib import Path
 from config import get_config
+
+# --- logging設定 ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('add_date.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # --- 設定 ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -136,14 +148,14 @@ def add_date_to_html(html_path):
                 continue
         
         if not content:
-            print(f"  ×失敗(文字コード不明): {html_path.name}")
+            logger.error(f"失敗(文字コード不明): {html_path.name}")
             return False
         
         # 日付を抽出
         extracted_date = extract_date_from_html(content)
         
         if extracted_date:
-            print(f"  -> Date見つかりました: {extracted_date}")
+            logger.info(f"Date見つかりました: {extracted_date}")
             
             # 既存の<time>タグがあれば削除（重複防止）
             content = re.sub(r'<time[^>]*>.*?</time>', '', content, flags=re.IGNORECASE | re.DOTALL)
@@ -156,7 +168,7 @@ def add_date_to_html(html_path):
                 content = re.sub(r'(</title>)', r'\1\n' + time_tag, content, count=1, flags=re.IGNORECASE)
             else:
                 # <title>がない場合は先頭に追加
-                print(f"  -> 警告: <title>タグが見つかりません。ファイル先頭に追加します。")
+                logger.warning("<title>タグが見つかりません。ファイル先頭に追加します。")
                 content = time_tag + content
             
             # ファイル書き込み
@@ -165,22 +177,22 @@ def add_date_to_html(html_path):
             
             return True
         else:
-            print(f"  -> !!!!Dateが見つかりません!!!!")
+            logger.warning("Dateが見つかりません")
             return True  # エラーではないので継続
     
     except Exception as e:
-        print(f"  ×エラー: {html_path.name} - {e}")
+        logger.error(f"エラー: {html_path.name} - {e}", exc_info=True)
         return False
 
 def main():
     if not INPUT_DIR.exists():
-        print(f"エラー: {INPUT_DIR} が見つかりません")
+        logger.error(f"{INPUT_DIR} が見つかりません")
         sys.exit(1)
     
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     
     processed_count = 0
-    print(f"--- 日付追加処理を開始します (対象フォルダ: {INPUT_DIR}) ---")
+    logger.info(f"--- 日付追加処理を開始します (対象フォルダ: {INPUT_DIR}) ---")
     
     for root, dirs, files in os.walk(str(INPUT_DIR)):
         for filename in files:
@@ -188,12 +200,12 @@ def main():
                 src_path = Path(root) / filename
                 processed_count += 1
                 
-                print(f"[{processed_count}] {src_path.relative_to(INPUT_DIR)}")
+                logger.info(f"[{processed_count}] {src_path.relative_to(INPUT_DIR)}")
                 add_date_to_html(src_path)
     
-    print("-" * 30)
-    print(f"【処理完了】")
-    print(f"処理したHTML: {processed_count} 本")
+    logger.info("-" * 30)
+    logger.info("【処理完了】")
+    logger.info(f"処理したHTML: {processed_count} 本")
 
 if __name__ == '__main__':
     main()
