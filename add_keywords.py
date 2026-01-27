@@ -2,8 +2,6 @@
 import os
 import re
 import xml.etree.ElementTree as ET
-import shutil
-from datetime import datetime
 from pathlib import Path
 from config import get_config
 
@@ -24,15 +22,7 @@ def load_keywords(xml_path):
         return [], [], False
 
 def process_html(file_path, mast_keywords, hit_keywords):
-    """HTMLファイルにキーワードをプレーンテキスト形式（KEYWORDS:）で注入。失敗時はバックアップから復元。"""
-    
-    # ✅ バックアップ作成
-    backup_path = f"{file_path}.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    try:
-        shutil.copy2(file_path, backup_path)
-    except Exception as e:
-        print(f"警告: バックアップ作成失敗 {file_path}: {e}")
-        backup_path = None
+    """HTMLファイルにキーワードを<search>タグで注入。"""
     
     try:
         # ファイル読み込み
@@ -86,13 +76,6 @@ def process_html(file_path, mast_keywords, hit_keywords):
         
     except Exception as e:
         print(f"エラー: {file_path} の処理に失敗しました: {e}")
-        # ✅ バックアップがあれば復元
-        if backup_path and os.path.exists(backup_path):
-            try:
-                shutil.copy2(backup_path, file_path)
-                print(f"バックアップから復元しました: {file_path}")
-            except Exception as restore_error:
-                print(f"復元にも失敗しました！: {restore_error}")
         return False
 
 def main():

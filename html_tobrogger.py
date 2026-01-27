@@ -110,9 +110,6 @@ def open_reports_folder():
                 # .xmlファイルは除外
                 if item.is_file() and item.suffix.lower() == '.xml':
                     continue
-                # .backup_を含むファイルは除外
-                if item.is_file() and '.backup_' in item.name:
-                    continue
                 # 実ファイルが見つかった
                 if item.is_file():
                     print(f"    -> 実ファイル検出: {item.relative_to(folder)}")
@@ -229,11 +226,12 @@ pythonproccess = [['クリーニング', 'cleaner.py'],
                 ['日付追加', 'add_date.py'],
                 ['位置情報追加', 'add_georss_point.py'],
                 ['画像位置情報削除＆ウォーターマーク追加', 'phot_exif_watemark.py'],
+                ['シリアライズ（カウンター管理）', 'serializer.py'],
                 ['アップロードフォルダ削除', 'delete_ready_upload.py'],
-                ['画像リネーム', 'image_preparer.py']]
+                ['画像準備', 'image_preparer.py']]
 
 # 操作５で実行される処理
-pythonproccess_step5 = [['HTMLリネーム', 'html_preparer.py'],
+pythonproccess_step5 = [['HTML準備', 'html_preparer.py'],
                         ['リンク設定', 'link_html.py'],
                         ['Atomフィード生成', 'convert_atom.py']]
 
