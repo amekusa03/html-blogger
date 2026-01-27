@@ -1,12 +1,24 @@
 # -*- coding: utf-8 -*-
 """画像のEXIF削除とウォーターマーク付与"""
 import os
+import logging
 from pathlib import Path
 
 import piexif
 from PIL import Image, ImageDraw, ImageFont
 
 from config import get_config
+
+# --- logging設定 ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('phot_exif_watemark.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # 設定
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -139,7 +151,7 @@ def add_watermark_and_remove_exif(src: Path, dest: Path) -> None:
 
 def process_images():
     if not INPUT_DIR.exists():
-        print(f"エラー: 入力フォルダが見つかりません: {INPUT_DIR}")
+        logger.error(f"入力フォルダが見つかりません: {INPUT_DIR}")
         return
 
     ensure_dir(OUTPUT_DIR)
@@ -147,7 +159,7 @@ def process_images():
     processed = 0
     copied = 0
 
-    print(f"--- EXIF削除＆ウォーターマーク追加を開始します (入力: {INPUT_DIR}, 出力: {OUTPUT_DIR}) ---")
+    logger.info(f"--- EXIF削除＆ウォーターマーク追加を開始します (入力: {INPUT_DIR}, 出力: {OUTPUT_DIR}) ---")
 
     for root, _, files in os.walk(INPUT_DIR):
         rel = os.path.relpath(root, INPUT_DIR)
@@ -160,7 +172,7 @@ def process_images():
                     add_watermark_and_remove_exif(src_path, dest_path)
                     processed += 1
                 except Exception as e:
-                    print(f"× 失敗: {src_path} -> {e}")
+                    logger.error(f"失敗: {src_path}", exc_info=True)
             else:
                 # 対象外はコピー
                 ensure_dir(dest_path.parent)
@@ -168,17 +180,17 @@ def process_images():
                     dest_path.write_bytes(src_path.read_bytes())
                     copied += 1
                 except Exception as e:
-                    print(f"× コピー失敗: {src_path} -> {e}")
+                    logger.error(f"コピー失敗: {src_path}", exc_info=True)
 
-    print("-" * 30)
-    print(f"【処理完了】画像処理: {processed} 件, コピーのみ: {copied} 件")
+    logger.info("-" * 30)
+    logger.info(f"【処理完了】画像処理: {processed} 件, コピーのみ: {copied} 件")
 
 
 if __name__ == "__main__":
     # ENABLEDチェック
     enabled = get_config('PHOROS_DELEXIF_ADDWATERMARK', 'ENABLED', 'true').lower()
     if enabled == 'false':
-        print("EXIF削除＆ウォーターマーク処理はスキップされます（ENABLED = false）")
+        logger.info("EXIF削除＆ウォーターマーク処理はスキップされます（ENABLED = false）")
         exit(0)
     
     process_images()
