@@ -70,9 +70,8 @@ def load_media_mapping():
         for match in matches:
             url = match.group(0)
             filename = match.group(1)  # ファイル名部分
-            # プロトコル部分を完全に削除（仕様通り）
-            url_without_protocol = url.replace('https://', '', 1).replace('http://', '', 1)
-            mapping[filename] = url_without_protocol
+            # 完全なURLをマッピング（Blogger APIに必要）
+            mapping[filename] = url
     
     print(f"画像マッピング: {len(mapping)} 個の画像URLを読み込みました。")
     if mapping:
