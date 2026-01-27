@@ -4,9 +4,21 @@ import re
 import tkinter as tk
 from tkinter import simpledialog, messagebox
 import webbrowser
+import logging
 from pathlib import Path
 from config import get_config
 import configparser
+
+# --- logging設定 ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('open_blogger.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # URLからBLOG_IDを抽出する関数
 def extract_blog_id_from_url(url):
@@ -36,7 +48,7 @@ def save_blog_id_to_config(blog_id):
     with open(config_file, 'w', encoding='utf-8') as f:
         config.write(f)
     
-    print(f"BLOG_IDをconfig.iniに保存しました: {blog_id}")
+    logger.info(f"BLOG_IDをconfig.iniに保存しました: {blog_id}")
 
 def main():
     """
@@ -49,7 +61,7 @@ def main():
     blogger_signin_url = get_config('OPEN_BLOGGER', 'BLOGGER_SIGNIN_URL')
     media_manager_url = get_config('OPEN_BLOGGER', 'MEDIA_MANAGER_URL')
     
-    print("Bloggerサイトとメディアマネージャーを開いています...")
+    logger.info("Bloggerサイトとメディアマネージャーを開いています...")
     webbrowser.open(blogger_signin_url, new=1)
     webbrowser.open(media_manager_url, new=1)
     
@@ -68,7 +80,7 @@ def main():
     
     if url is None:
         # キャンセルボタンが押された場合
-        print("キャンセルされました。")
+        logger.info("キャンセルされました。")
         return
     
     # URLからBLOG_IDを抽出
@@ -78,10 +90,10 @@ def main():
         # BLOG_IDをconfig.iniに保存
         save_blog_id_to_config(blog_id)
         messagebox.showinfo("成功", f"BLOG_IDを抽出して保存しました:\n{blog_id}")
-        print(f"抽出したBLOG_ID: {blog_id}")
+        logger.info(f"抽出したBLOG_ID: {blog_id}")
     else:
         messagebox.showerror("エラー", "URLが正しくありません。\n/posts/ の後に数字が必要です。")
-        print("エラー: URLからBLOG_IDを抽出できませんでした。")
+        logger.error("エラー: URLからBLOG_IDを抽出できませんでした。")
 
 if __name__ == '__main__':
     main()
