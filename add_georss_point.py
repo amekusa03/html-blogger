@@ -2,6 +2,7 @@
 import os
 import time
 import re
+import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from bs4 import BeautifulSoup
@@ -9,6 +10,17 @@ from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut
 from janome.tokenizer import Tokenizer
 from config import get_config
+
+# logging設定
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('add_georss_point.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 """
 位置情報追加スクリプト
@@ -33,7 +45,7 @@ def load_georss_points(xml_file):
     geo_data = {}
     try:
         if not xml_file.exists():
-            print(f"警告: {xml_file} が見つかりません。")
+            logger.warning(f"{xml_file} が見つかりません。")
             return geo_data
         
         tree = ET.parse(str(xml_file))
@@ -53,9 +65,9 @@ def load_georss_points(xml_file):
                     # 大文字小文字を区別しないために小文字に統一してキーにする
                     geo_data[name.lower()] = (name, latitude, longitude)
         
-        print(f"位置情報を読み込みました: {len(geo_data)}件")
+        logger.info(f"位置情報を読み込みました: {len(geo_data)}件")
     except Exception as e:
-        print(f"XML読み込みエラー: {e}")
+        logger.error(f"XML読み込みエラー: {e}", exc_info=True)
     
     return geo_data
 
@@ -102,9 +114,9 @@ def save_to_georss_cache(xml_file, location_name, latitude="", longitude=""):
         # インデント整形して保存
         indent_xml(root)
         tree.write(str(xml_file), encoding='utf-8', xml_declaration=True)
-        print(f"  -> georss_point.xmlに保存しました: {location_name}")
+        logger.info(f"  -> georss_point.xmlに保存しました: {location_name}")
     except Exception as e:
-        print(f"XML保存エラー: {e}")
+        logger.error(f"XML保存エラー: {e}", exc_info=True)
 
 
 def indent_xml(elem, level=0):
@@ -170,7 +182,7 @@ def find_location_in_html(html_text, geo_data):
             for split_name in split_names:
                 if split_name not in spot_candidates:
                     spot_candidates.append(split_name)
-                    print(f"タイトル分割: '{name}' -> '{split_name}'")
+                    logger.debug(f"タイトル分割: '{name}' -> '{split_name}'")
     
     # h1～h6タグから取得（記号で分割）
     for level in range(1, 7):
@@ -181,7 +193,7 @@ def find_location_in_html(html_text, geo_data):
                 for split_name in split_names:
                     if split_name not in spot_candidates:
                         spot_candidates.append(split_name)
-                        print(f"見出し{level}分割: '{name}' -> '{split_name}'")
+                        logger.debug(f"見出し{level}分割: '{name}' -> '{split_name}'")
     
     # 1. テキストから地名を抽出（Janomeを使用、日本語のみ）
     html_text_for_tokenize = re.sub(r'[^\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\s]', '', html_text_normalized)
@@ -196,7 +208,7 @@ def find_location_in_html(html_text, geo_data):
                 continue
             if token.surface not in spot_candidates:
                 spot_candidates.append(token.surface)
-                print(f"Janome抽出: {token.surface} ({pos})")
+                logger.debug(f"Janome抽出: {token.surface} ({pos})")
     
     # 画像のalt属性から取得（記号で分割）
     for img in soup.find_all('img', alt=True):
@@ -206,17 +218,17 @@ def find_location_in_html(html_text, geo_data):
             for split_name in split_names:
                 if split_name not in spot_candidates:
                     spot_candidates.append(split_name)
-                    print(f"alt属性分割: '{name}' -> '{split_name}'")
+                    logger.debug(f"alt属性分割: '{name}' -> '{split_name}'")
     
     # 特定のフォントサイズ指定があるテキストを取得
     for font in soup.find_all('font', size="-1"):
         name = font.get_text(strip=True)
         if name and name not in spot_candidates:
             spot_candidates.append(name)
-            print(f"font候補: {name}")
+            logger.debug(f"font候補: {name}")
 
     spot_candidates = list(dict.fromkeys(spot_candidates))  # 重複削除
-    print(f"検索候補総数: {len(spot_candidates)}個 -> {spot_candidates}")
+    logger.debug(f"検索候補総数: {len(spot_candidates)}個 -> {spot_candidates}")
     
     # 3. ジオコーディング（地名を座標に変換）
     # user_agentは独自のものを設定
@@ -231,18 +243,18 @@ def find_location_in_html(html_text, geo_data):
             cached_name, cached_lat, cached_lon = geo_data[spot_lower]
             if cached_lat and cached_lon:  # 緯度経度がある場合
                 found_location = (cached_name, cached_lat, cached_lon)
-                print(f"  -> キャッシュから取得: {cached_name} -> ({cached_lat}, {cached_lon})")
+                logger.debug(f"  -> キャッシュから取得: {cached_name} -> ({cached_lat}, {cached_lon})")
                 break
             else:
                 # 過去に検索して見つからなかったことが記録されている
-                print(f"  -> キャッシュ済み（見つかりませんでした）: {spot}")
+                logger.debug(f"  -> キャッシュ済み（見つかりませんでした）: {spot}")
                 continue
         
         # XMLに未登録の場合のみNominatimで検索
         try:
             # 地名をそのまま検索（日本国内外を問わず）
             search_query = spot
-            print(f"  Nominatim検索: '{search_query}'")
+            logger.debug(f"  Nominatim検索: '{search_query}'")
             
             location = geolocator.geocode(search_query, language='ja')
             if location:
@@ -250,12 +262,12 @@ def find_location_in_html(html_text, geo_data):
                 address_lower = location.address.lower()
                 latitude = location.latitude
                 longitude = location.longitude
-                print(f"    検索結果: {location.address}")
-                print(f"    座標: ({latitude}, {longitude})")
+                logger.debug(f"    検索結果: {location.address}")
+                logger.debug(f"    座標: ({latitude}, {longitude})")
                 
                 # 検索語が結果のアドレスに含まれているか確認
                 if spot_lower not in address_lower:
-                    print(f"  -> ×検証失敗: '{spot}' が結果アドレスに含まれていません")
+                    logger.debug(f"  -> ×検証失敗: '{spot}' が結果アドレスに含まれていません")
                     save_to_georss_cache(GEORSS_POINT_FILE, spot, "", "")
                 else:
                     results.append({
@@ -265,12 +277,12 @@ def find_location_in_html(html_text, geo_data):
                         "longitude": longitude
                     })
                     found_location = (spot, latitude, longitude)
-                    print(f"  -> ✓見つかりました: {spot} -> ({latitude}, {longitude})")
+                    logger.info(f"  -> ✓見つかりました: {spot} -> ({latitude}, {longitude})")
                     # XMLに保存
                     save_to_georss_cache(GEORSS_POINT_FILE, spot, latitude, longitude)
                     break  # 最初に見つけたものを採用
             else:
-                print(f"  -> ×見つかりませんでした: {spot}")
+                logger.debug(f"  -> ×見つかりませんでした: {spot}")
                 # 見つからなかった場合も空文字列でXMLに保存（重複クエリ防止）
                 save_to_georss_cache(GEORSS_POINT_FILE, spot, "", "")
             
@@ -278,7 +290,7 @@ def find_location_in_html(html_text, geo_data):
             time.sleep(1.1)
         
         except GeocoderTimedOut:
-            print(f"タイムアウトしました: {spot}")
+            logger.warning(f"タイムアウトしました: {spot}")
             # タイムアウトした場合も空文字列で保存
             save_to_georss_cache(GEORSS_POINT_FILE, spot, "", "")
     
@@ -301,7 +313,7 @@ def add_georss_tag_to_html(html_text, location_name, latitude, longitude):
         if re.search(r'</title>', html_text, re.IGNORECASE):
             html_text = re.sub(r'(</title>)', r'\1\n' + georss_tag, html_text, count=1, flags=re.IGNORECASE)
         else:
-            print(f"  -> 警告: <title>, <time> タグが見つかりません。ファイル先頭に追加します。")
+            logger.warning(f"  -> 警告: <title>, <time> タグが見つかりません。ファイル先頭に追加します。")
             html_text = georss_tag + html_text
     
     return html_text
@@ -312,16 +324,16 @@ def process_html_files():
     """
     # 出力フォルダを作成
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"作成しました: {OUTPUT_DIR}")
+    logger.info(f"作成しました: {OUTPUT_DIR}")
     
     # 位置情報を読み込む
     geo_data = load_georss_points(GEORSS_POINT_FILE)
     
     if not geo_data:
-        print("警告: 位置情報が見つかりません。処理をスキップします。")
+        logger.warning("位置情報が見つかりません。処理をスキップします。")
         return
     
-    print("位置情報を追加処理を開始します...")
+    logger.info("位置情報を追加処理を開始します...")
     
     processed_count = 0
     found_location_count = 0
@@ -349,7 +361,7 @@ def process_html_files():
                         continue
                 
                 if content:
-                    print(f"[{processed_count}] 処理中: {rel_path}/{filename}")
+                    logger.info(f"[{processed_count}] 処理中: {rel_path}/{filename}")
                     
                     # まずXMLキャッシュから直接マッチする位置情報を探す
                     soup = BeautifulSoup(content, 'html.parser')
@@ -370,7 +382,7 @@ def process_html_files():
                             cached_name, cached_lat, cached_lon = geo_data[text_lower]
                             if cached_lat and cached_lon:
                                 location = (cached_name, cached_lat, cached_lon)
-                                print(f"  -> XMLキャッシュから位置情報を取得: {cached_name}")
+                                logger.debug(f"  -> XMLキャッシュから位置情報を取得: {cached_name}")
                                 break
                     
                     # XMLになければNominatimで検索
@@ -382,31 +394,31 @@ def process_html_files():
                         original_name, latitude, longitude = location
                         content = add_georss_tag_to_html(content, original_name, latitude, longitude)
                         found_location_count += 1
-                        print(f"  -> 位置情報を追加しました: {original_name} ({latitude}, {longitude})")
+                        logger.info(f"  -> 位置情報を追加しました: {original_name} ({latitude}, {longitude})")
                     else:
-                        print(f"  -> 地域情報が見つかりません")
+                        logger.debug(f"  -> 地域情報が見つかりません")
                     
                     # ファイルを出力
                     dest_path = dest_dir / filename
                     with open(str(dest_path), 'w', encoding='utf-8') as f:
                         f.write(content)
                 else:
-                    print(f"[{processed_count}] ×失敗(文字コード不明): {rel_path}/{filename}")
+                    logger.error(f"[{processed_count}] ×失敗(文字コード不明): {rel_path}/{filename}")
             else:
                 # HTMLファイル以外はそのままスキップ
                 # （入力フォルダと出力フォルダが同じため、コピー不要）
                 pass
     
-    print("-" * 30)
-    print(f"【処理完了】")
-    print(f"処理したHTML: {processed_count} 本")
-    print(f"位置情報を追加したHTML: {found_location_count} 本")
+    logger.info("-" * 30)
+    logger.info("【処理完了】")
+    logger.info(f"処理したHTML: {processed_count} 本")
+    logger.info(f"位置情報を追加したHTML: {found_location_count} 本")
 
 if __name__ == '__main__':
     # ENABLEDチェック
     enabled = get_config('ADD_GEORSS_POINT', 'ENABLED', 'true').lower()
     if enabled == 'false':
-        print("位置情報追加処理はスキップされます（ENABLED = false）")
+        logger.info("位置情報追加処理はスキップされます（ENABLED = false）")
         exit(0)
     
     process_html_files()
