@@ -47,10 +47,8 @@ def clean_html_for_blogger(html_text):
         if hx_match:
             extracted_title = hx_match.group(1).strip()
             extracted_title = re.sub(r'</?(B|font|span|strong).*?>', '', extracted_title, flags=re.IGNORECASE)
-    if extracted_title:
-        logger.debug(f"  -> Title見つかりました: {extracted_title}")
-    else:
-        logger.warning("  -> !!!!!タイトルが見つかりません!!!!!!") 
+    if not extracted_title:
+        logger.warning("タイトルが見つかりません")
 
     # 3. BeautifulSoupを使って不要なタグと属性を削除
     soup = BeautifulSoup(html_text, 'html.parser')
@@ -190,7 +188,6 @@ if __name__ == '__main__':
     # reports/ から work/ にコピー
     try:
         shutil.copytree(str(REPORTS_DIR), str(OUTPUT_DIR), dirs_exist_ok=True)
-        logger.info(f"コピー完了: {REPORTS_DIR} → {OUTPUT_DIR}")
     except Exception as e:
         logger.error(f"ディレクトリコピーに失敗しました: {e}", exc_info=True)
         sys.exit(1)
@@ -200,7 +197,7 @@ if __name__ == '__main__':
     processed_count = 0
     image_count = 0
 
-    logger.info(f"変換処理を開始します (対象フォルダ: {SOURCE_DIR})")
+    logger.info(f"変換処理を開始: {SOURCE_DIR}")
 
     for root, dirs, files in os.walk(str(SOURCE_DIR)):
         rel_path = os.path.relpath(root, str(SOURCE_DIR))
@@ -225,21 +222,17 @@ if __name__ == '__main__':
                         continue
 
                 if content:
-                    logger.info(f"[{processed_count}] code {SOURCE_DIR}/{rel_path}/{filename}")
                     cleaned = clean_html_for_blogger(content)
                     with open(str(dest_path), 'w', encoding='utf-8') as f:
                         f.write(cleaned)
-                    logger.info(f" -->HTML変換成功: {dest_path}")
+                    processed_count += 1
                 else:
-                    logger.error(f"[{processed_count}] ×失敗(文字コード不明): {rel_path}/{filename}")
+                    logger.error(f"文字コード不明: {rel_path}/{filename}")
 
             else:
                 # 画像ファイルなどはそのままスキップ
                 # （入力フォルダと出力フォルダが同じため、コピー不要）
                 image_count += 1
 
-    logger.info("-" * 30)
-    logger.info("【処理完了】")
-    logger.info(f"変換したHTML: {processed_count} 本")
-    logger.info(f"コピーした画像他: {image_count} ファイル")
+    logger.info(f"完了: HTML変換{processed_count}本, 画像{image_count}ファイル")
 
