@@ -1,15 +1,27 @@
 # -*- coding: utf-8 -*-
 import os
 import re
+import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from config import get_config
+
+# logging設定
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('add_keywords.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 def load_keywords(xml_path):
     """XMLからキーワードを読み込む。返却値: (mast_keywords, hit_keywords, success_flag)"""
     try:
         if not os.path.exists(xml_path):
-            print(f"エラー: {xml_path} が見つかりません。")
+            logger.error(f"{xml_path} が見つかりません。")
             return [], [], False
         
         tree = ET.parse(xml_path)
@@ -18,7 +30,7 @@ def load_keywords(xml_path):
         hit_keywords = [node.text for node in root.find('Hitkeywords').findall('word') if node.text]
         return mast_keywords, hit_keywords, True
     except Exception as e:
-        print(f"XML読み込みエラー: {e}")
+        logger.error(f"XML読み込みエラー: {e}", exc_info=True)
         return [], [], False
 
 def process_html(file_path, mast_keywords, hit_keywords):
@@ -71,11 +83,11 @@ def process_html(file_path, mast_keywords, hit_keywords):
         # 5. ファイル保存
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(html_content)
-        print(f"完了: {file_path}")
+        logger.info(f"完了: {file_path}")
         return True
         
     except Exception as e:
-        print(f"エラー: {file_path} の処理に失敗しました: {e}")
+        logger.error(f"{file_path} の処理に失敗しました: {e}", exc_info=True)
         return False
 
 def main():
@@ -85,21 +97,21 @@ def main():
     
     # ✅ ファイル存在確認
     if not xml_file.exists():
-        print(f"エラー: {xml_file} が見つかりません。")
+        logger.error(f"{xml_file} が見つかりません。")
         return
     if not add_keywords_dir.exists():
-        print(f"エラー: {add_keywords_dir} ディレクトリが見つかりません。")
+        logger.error(f"{add_keywords_dir} ディレクトリが見つかりません。")
         return
 
     # ✅ キーワード読み込み（戻り値チェック）
     mast_kws, hit_kws, success = load_keywords(str(xml_file))
     
     if not success:
-        print("警告: キーワード読み込みに失敗しました。キーワード注入をスキップします。")
+        logger.warning("キーワード読み込みに失敗しました。キーワード注入をスキップします。")
         return
     
     if not mast_kws and not hit_kws:
-        print("警告: キーワードが見つかりません。")
+        logger.warning("キーワードが見つかりません。")
 
     # ✅ ファイル処理（戻り値チェック）
     processed_count = 0
@@ -115,11 +127,11 @@ def main():
                     else:
                         failed_count += 1
     
-    print("-" * 30)
-    print(f"【処理完了】")
-    print(f"成功: {processed_count} ファイル")
+    logger.info("-" * 30)
+    logger.info("【処理完了】")
+    logger.info(f"成功: {processed_count} ファイル")
     if failed_count > 0:
-        print(f"失敗: {failed_count} ファイル")
+        logger.warning(f"失敗: {failed_count} ファイル")
 
 if __name__ == "__main__":
     main()
