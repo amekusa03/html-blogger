@@ -5,7 +5,19 @@ utils.py
 """
 
 import shutil
+import logging
 from pathlib import Path
+
+# logging設定
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('utils.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 
 def read_counter(counter_file='counter.txt'):
@@ -49,13 +61,13 @@ def copy_files_by_extension(source_dir, output_dir, extensions, file_type_name, 
     """
     # 出力フォルダがなければ作成
     output_dir.mkdir(parents=True, exist_ok=True)
-    print(f"作成しました: {output_dir}")
+    logger.info(f"作成しました: {output_dir}")
     
-    print(f"{file_type_name}のコピー処理を開始します...")
+    logger.info(f"{file_type_name}のコピー処理を開始します...")
     
     # 入力フォルダの存在チェック
     if not source_dir.exists():
-        print(f"エラー: {source_dir} が存在しません。")
+        logger.error(f"{source_dir} が存在しません。")
         return 0
     
     copy_count = 0
@@ -97,16 +109,16 @@ def copy_files_by_extension(source_dir, output_dir, extensions, file_type_name, 
             try:
                 shutil.copy2(str(src_file), str(dest_file))
                 copy_count += 1
-                print(f"  [{copy_count}] {new_name}")
+                logger.info(f"  [{copy_count}] {new_name}")
             except Exception as e:
-                print(f"  エラー: {new_name} のコピーに失敗しました。 {e}")
+                logger.error(f"  {new_name} のコピーに失敗しました。 {e}", exc_info=True)
         
         if use_counter:
             # フォルダ処理完了後、カウンターをインクリメント
             current_counter = increment_counter(current_counter)
             write_counter(current_counter)
     
-    print("-" * 50)
-    print(f"完了しました。合計 {copy_count} 個の{file_type_name}を {output_dir} にコピーしました。")
+    logger.info("-" * 50)
+    logger.info(f"完了しました。合計 {copy_count} 個の{file_type_name}を {output_dir} にコピーしました。")
     
     return copy_count
