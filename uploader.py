@@ -200,8 +200,8 @@ def upload_from_ready_to_upload():
         logger.debug(json.dumps(body, indent=2, ensure_ascii=False))
         
         try:
-            # 【本番モード】実際にBlogger APIへアップロード
-            TEST_MODE = False   # Falseに設定すると実際にアップロードされます
+            # 【テストモード】Blogger APIにアクセスしない（動作確認用）
+            TEST_MODE = True   # Trueに設定するとAPI呼び出しをスキップします
             
             if TEST_MODE:
                 logger.warning("【テストモード】API呼び出しをスキップします")
