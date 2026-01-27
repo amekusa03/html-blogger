@@ -3,6 +3,7 @@ import pickle
 import time
 import re
 import sys
+import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from bs4 import BeautifulSoup
@@ -11,10 +12,21 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from config import get_config
 
+# --- ロギング設定 ---
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('uploader.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 # --- 設定 ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
 BLOG_ID = get_config('UPLOADER', 'BLOG_ID')
-print(f"デバッグ: 読み込まれたBLOG_ID = {BLOG_ID}")
+logger.debug(f"読み込まれたBLOG_ID = {BLOG_ID}")
 LOG_FILE = SCRIPT_DIR / get_config('UPLOADER', 'LOG_FILE', 'uploaded_atom_ids.txt')
 SCOPES = [get_config('UPLOADER', 'SCOPES', 'https://www.googleapis.com/auth/blogger')]
 DELAY_SECONDS = float(get_config('UPLOADER', 'DELAY_SECONDS', '1.1'))
@@ -33,23 +45,23 @@ def get_blogger_service():
             with open(str(token_file), 'rb') as token:
                 creds = pickle.load(token)
         except Exception as e:
-            print(f'警告: token.pickle の読み込みエラー: {e}')
+            logger.warning(f'token.pickle の読み込みエラー: {e}')
             creds = None
     
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             try:
                 creds.refresh(Request())
-                print('トークンをリフレッシュしました。')
+                logger.info('トークンをリフレッシュしました。')
             except Exception as e:
-                print(f'トークンリフレッシュエラー: {e}。新規認証を実施します。')
+                logger.warning(f'トークンリフレッシュエラー: {e}。新規認証を実施します。')
                 creds = None
         
         if not creds:
             try:
                 flow = InstalledAppFlow.from_client_secrets_file(str(SCRIPT_DIR / 'credentials.json'), SCOPES)
                 creds = flow.run_local_server(port=0)
-                print('新規認証に成功しました。')
+                logger.info('新規認証に成功しました。')
             except Exception as e:
                 raise Exception(f'Google 認証に失敗しました: {e}')
         
@@ -57,7 +69,7 @@ def get_blogger_service():
             with open(str(SCRIPT_DIR / 'token.pickle'), 'wb') as token:
                 pickle.dump(creds, token)
         except Exception as e:
-            print(f'警告: token.pickle の保存エラー: {e}')
+            logger.warning(f'token.pickle の保存エラー: {e}')
     
     return build('blogger', 'v3', credentials=creds)
 
@@ -76,20 +88,18 @@ def upload_from_ready_to_upload():
     
     # 【重大エラーチェック】BLOG_ID 設定確認
     if BLOG_ID == 'あなたのブログID' or not BLOG_ID or BLOG_ID.strip() == '':
-        error_msg = "エラー: BLOG_ID が設定されていません。uploader.py の BLOG_ID 変数を設定してください。"
-        print(error_msg)
+        logger.error("BLOG_ID が設定されていません。config.ini の [UPLOADER] セクションを確認してください。")
         sys.exit(1)
     
     # 【重大エラーチェック】認証情報の事前確認
     try:
         service = get_blogger_service()
     except FileNotFoundError as e:
-        error_msg = f"エラー: {e}"
-        print(error_msg)
+        logger.error(f"{e}")
         sys.exit(1)
     except Exception as e:
-        error_msg = f"エラー: Google認証に失敗しました: {e}\n認証情報（credentials.json）が有効か確認してください。"
-        print(error_msg)
+        logger.error(f"Google認証に失敗しました: {e}")
+        logger.error("認証情報（credentials.json）が有効か確認してください。")
         sys.exit(1)
     
     # Atom ファイルの存在確認（ready_upload フォルダ内）
@@ -102,11 +112,11 @@ def upload_from_ready_to_upload():
             with open(str(LOG_FILE), 'r') as f:
                 uploaded_ids = set(line.strip() for line in f)
         except Exception as e:
-            print(f'ログファイル読み込みエラー: {e}')
+            logger.warning(f'ログファイル読み込みエラー: {e}')
             uploaded_ids = set()
     else:
         uploaded_ids = set()
-        print(f'新規ログファイルを作成します: {LOG_FILE}')
+        logger.info(f'新規ログファイルを作成します: {LOG_FILE}')
 
     # Atom ファイル解析
     ns = {
@@ -117,10 +127,10 @@ def upload_from_ready_to_upload():
     try:
         tree = ET.parse(str(feed_file))
     except ET.ParseError as e:
-        print(f'Atom ファイルのパースエラー: {e}')
+        logger.error(f'Atom ファイルのパースエラー: {e}')
         return
     except Exception as e:
-        print(f'予期しないエラー: {e}')
+        logger.error(f'予期しないエラー: {e}')
         return
     entries = tree.getroot().findall('atom:entry', ns)
 
@@ -176,25 +186,25 @@ def upload_from_ready_to_upload():
         if location_data:
             body['location'] = location_data
 
-        print(f"\n=== アップロード開始 ===")
-        print(f"タイトル: {title}")
-        print(f"公開日: {published}")
-        print(f"BLOG_ID: {BLOG_ID}")
-        print(f"ラベル: {labels}")
+        logger.info("=" * 50)
+        logger.info(f"アップロード開始: {title}")
+        logger.info(f"公開日: {published}")
+        logger.info(f"BLOG_ID: {BLOG_ID}")
+        logger.info(f"ラベル: {labels}")
         if location_data:
-            print(f"場所: {location_data['name']} ({location_data['lat']}, {location_data['lng']})")
+            logger.info(f"場所: {location_data['name']} ({location_data['lat']}, {location_data['lng']})")
         
         # デバッグ: 送信するbodyデータを全て表示
         import json
-        print(f"\n【デバッグ】送信するAPIリクエストボディ:")
-        print(json.dumps(body, indent=2, ensure_ascii=False))
+        logger.debug("送信するAPIリクエストボディ:")
+        logger.debug(json.dumps(body, indent=2, ensure_ascii=False))
         
         try:
             # 【本番モード】実際にBlogger APIへアップロード
-            TEST_MODE = False  # 本番実行
+            TEST_MODE = False   # Falseに設定すると実際にアップロードされます
             
             if TEST_MODE:
-                print("【テストモード】API呼び出しをスキップします")
+                logger.warning("【テストモード】API呼び出しをスキップします")
                 response = {'id': 'TEST_POST_ID', 'url': 'https://test.url'}
             else:
                 response = service.posts().insert(blogId=BLOG_ID, body=body, isDraft=True).execute()
@@ -203,23 +213,23 @@ def upload_from_ready_to_upload():
                 with open(str(LOG_FILE), 'a') as f:
                     f.write(f"{eid}\n")
             except Exception as log_error:
-                print(f'警告: ログ記録エラー: {log_error}')
+                logger.warning(f'ログ記録エラー: {log_error}')
             count += 1
             post_id = response.get('id', 'N/A')
-            print(f"[{count}] 成功 (ID: {post_id}): {title if title else '(タイトルなし)'}")
+            logger.info(f"[{count}] 成功 (ID: {post_id}): {title if title else '(タイトルなし)'}")
             time.sleep(DELAY_SECONDS)
         except Exception as e:
             error_count += 1
-            error_msg = f"[エラー] (タイトル: {title}): {e}"
-            print(error_msg)
-            # エラーがあっても処理を継続してログを出力
+            logger.error(f"アップロード失敗 (タイトル: {title}): {e}", exc_info=True)
+            # エラーがあっても処理を継続
 
     # 処理完了サマリー
-    print(f"\n=== 処理完了 ===")
-    print(f"成功: {count}件")
-    print(f"エラー: {error_count}件")
+    logger.info("=" * 50)
+    logger.info("処理完了")
+    logger.info(f"成功: {count}件")
+    logger.info(f"エラー: {error_count}件")
     if error_count > 0:
-        print("エラーが発生したポストがあります。ログを確認してください。")
+        logger.warning("エラーが発生したポストがあります。uploader.log を確認してください。")
 
 if __name__ == '__main__':
     upload_from_ready_to_upload()
