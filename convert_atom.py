@@ -2,10 +2,22 @@
 import os
 import re
 import uuid
+import logging
 from datetime import datetime
 from pathlib import Path
 from bs4 import BeautifulSoup
 from config import get_config
+
+# logging設定
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('convert_atom.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # --- 設定 ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -130,7 +142,7 @@ def html_to_atom_entry(filepath, folder_name):
         with open(filepath, 'r', encoding='utf-8') as f:
             html_text = f.read()
     except Exception as e:
-        print(f"×エラー: {filepath} を読み込めません: {e}")
+        logger.error(f"{filepath} を読み込めません: {e}", exc_info=True)
         return None
     
     metadata = extract_metadata(html_text, filepath)
@@ -138,7 +150,7 @@ def html_to_atom_entry(filepath, folder_name):
     # デバッグ出力
     from pathlib import Path
     filepath_obj = Path(filepath)
-    print(f"デバッグ: ファイル={filepath_obj.name}, タイトル='{metadata['title']}', キーワード='{metadata['keywords']}'")
+    logger.debug(f"ファイル={filepath_obj.name}, タイトル='{metadata['title']}', キーワード='{metadata['keywords']}'")
     
     # タイトルが見つからない場合はフォルダ名を使用
     if not metadata['title']:
@@ -203,7 +215,7 @@ def generate_atom_feed():
     """Atom フィードを生成"""
     
     if not os.path.exists(INPUT_DIR):
-        print(f"エラー: {INPUT_DIR} フォルダが見つかりません。")
+        logger.error(f"{INPUT_DIR} フォルダが見つかりません。")
         return
     
     # 出力フォルダを作成
@@ -212,7 +224,7 @@ def generate_atom_feed():
     entries = []
     processed_count = 0
     
-    print(f"--- Atom フィード生成を開始します (対象フォルダ: {INPUT_DIR}) ---")
+    logger.info(f"Atom フィード生成を開始します (対象フォルダ: {INPUT_DIR})")
     
     # ready_to_upload フォルダ内を再帰的に走査
     for root, dirs, files in os.walk(str(INPUT_DIR)):
@@ -226,10 +238,10 @@ def generate_atom_feed():
                 if entry:
                     entries.append(entry)
                     processed_count += 1
-                    print(f"[{processed_count}] {rel_path} -> エントリ生成")
+                    logger.info(f"[{processed_count}] {rel_path} -> エントリ生成")
     
     if not entries:
-        print("警告: 処理対象の HTML ファイルが見つかりません。")
+        logger.warning("処理対象の HTML ファイルが見つかりません。")
         return
     
     # Atom フィードヘッダ
@@ -254,13 +266,13 @@ def generate_atom_feed():
                 f.write(entry)
             f.write(atom_footer)
         
-        print("-" * 40)
-        print(f"【処理完了】")
-        print(f"生成したエントリ数: {processed_count}")
-        print(f"出力ファイル: {OUTPUT_FILE}")
+        logger.info("-" * 40)
+        logger.info("【処理完了】")
+        logger.info(f"生成したエントリ数: {processed_count}")
+        logger.info(f"出力ファイル: {OUTPUT_FILE}")
     
     except Exception as e:
-        print(f"エラー: {OUTPUT_FILE} に書き込めません: {e}")
+        logger.error(f"{OUTPUT_FILE} に書き込めません: {e}", exc_info=True)
 
 if __name__ == '__main__':
     generate_atom_feed()
