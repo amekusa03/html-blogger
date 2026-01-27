@@ -380,9 +380,10 @@ def run_next_process():
     script_name = item[1]
     
     text_widget.insert(Tkinter.END, f"\n[{current_process_index + 1}/{len(current_process_list)}] {item[0]} 実行中...\n")
+    text_widget.insert(Tkinter.END, f"  Python: {sys.executable}\n")  # デバッグ出力
     text_widget.see(Tkinter.END)
     
-    process = subprocess.Popen([sys.executable, script_name], stdout=subprocess.PIPE, text=True)
+    process = subprocess.Popen([sys.executable, script_name], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     root.after(10, update_timer)
 
 def update_timer():

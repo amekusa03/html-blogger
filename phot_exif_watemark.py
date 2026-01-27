@@ -175,4 +175,10 @@ def process_images():
 
 
 if __name__ == "__main__":
+    # ENABLEDチェック
+    enabled = get_config('PHOROS_DELEXIF_ADDWATERMARK', 'ENABLED', 'true').lower()
+    if enabled == 'false':
+        print("EXIF削除＆ウォーターマーク処理はスキップされます（ENABLED = false）")
+        exit(0)
+    
     process_images()

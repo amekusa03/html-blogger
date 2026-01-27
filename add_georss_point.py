@@ -403,4 +403,10 @@ def process_html_files():
     print(f"位置情報を追加したHTML: {found_location_count} 本")
 
 if __name__ == '__main__':
+    # ENABLEDチェック
+    enabled = get_config('ADD_GEORSS_POINT', 'ENABLED', 'true').lower()
+    if enabled == 'false':
+        print("位置情報追加処理はスキップされます（ENABLED = false）")
+        exit(0)
+    
     process_html_files()
