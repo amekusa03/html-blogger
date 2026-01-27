@@ -2,9 +2,21 @@ import os
 import re      
 import shutil
 import sys
+import logging
 from pathlib import Path
 from bs4 import BeautifulSoup, NavigableString, Comment
 from config import get_config
+
+# logging設定
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('cleaner.log', encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # --- 設定 ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -36,9 +48,9 @@ def clean_html_for_blogger(html_text):
             extracted_title = hx_match.group(1).strip()
             extracted_title = re.sub(r'</?(B|font|span|strong).*?>', '', extracted_title, flags=re.IGNORECASE)
     if extracted_title:
-        print(f"  -> Title見つかりました: {extracted_title}")
+        logger.debug(f"  -> Title見つかりました: {extracted_title}")
     else:
-        print("  -> !!!!!Titleが見つかりません!!!!!!") 
+        logger.warning("  -> !!!!!タイトルが見つかりません!!!!!!") 
 
     # 3. BeautifulSoupを使って不要なタグと属性を削除
     soup = BeautifulSoup(html_text, 'html.parser')
@@ -106,11 +118,11 @@ def clean_html_for_blogger(html_text):
     # 本文が極端に削られていないかチェック（20%未満なら中断）
     if original_length > 100 and cleaned_length < original_length * 0.2:
         error_msg = (
-            "エラー: HTML クリーニング時にコンテンツが過度に削除されました。\n"
+            "HTML クリーニング時にコンテンツが過度に削除されました。\n"
             f"元(本文): {original_length}文字 → 削除後: {cleaned_length}文字\n"
             "正規表現が過度に積極的な可能性があります。サンプルHTMLで検証してください。"
         )
-        print(error_msg)
+        logger.error(error_msg)
         sys.exit(1)
     
     # 10. 画像処理 (figcaptionの修正)
@@ -168,7 +180,7 @@ if __name__ == '__main__':
     REPORTS_DIR = SCRIPT_DIR / get_config('CLEANER', 'REPORTS_DIR', './reports')
     
     if not REPORTS_DIR.exists():
-        print(f"エラー: {REPORTS_DIR} が見つかりません")
+        logger.error(f"{REPORTS_DIR} が見つかりません")
         sys.exit(1)
     
     # work/ を削除して再作成
@@ -178,9 +190,9 @@ if __name__ == '__main__':
     # reports/ から work/ にコピー
     try:
         shutil.copytree(str(REPORTS_DIR), str(OUTPUT_DIR), dirs_exist_ok=True)
-        print(f"コピー完了: {REPORTS_DIR} → {OUTPUT_DIR}")
+        logger.info(f"コピー完了: {REPORTS_DIR} → {OUTPUT_DIR}")
     except Exception as e:
-        print(f"エラー: ディレクトリコピーに失敗しました: {e}")
+        logger.error(f"ディレクトリコピーに失敗しました: {e}", exc_info=True)
         sys.exit(1)
     
     SOURCE_DIR = OUTPUT_DIR
@@ -188,7 +200,7 @@ if __name__ == '__main__':
     processed_count = 0
     image_count = 0
 
-    print(f"--- 変換処理を開始します (対象フォルダ: {SOURCE_DIR}) ---")
+    logger.info(f"変換処理を開始します (対象フォルダ: {SOURCE_DIR})")
 
     for root, dirs, files in os.walk(str(SOURCE_DIR)):
         rel_path = os.path.relpath(root, str(SOURCE_DIR))
@@ -213,21 +225,21 @@ if __name__ == '__main__':
                         continue
 
                 if content:
-                    print(f"[{processed_count}] code {SOURCE_DIR}/{rel_path}/{filename}")
+                    logger.info(f"[{processed_count}] code {SOURCE_DIR}/{rel_path}/{filename}")
                     cleaned = clean_html_for_blogger(content)
                     with open(str(dest_path), 'w', encoding='utf-8') as f:
                         f.write(cleaned)
-                    print(f" -->HTML変換成功: {dest_path}")
+                    logger.info(f" -->HTML変換成功: {dest_path}")
                 else:
-                    print(f"[{processed_count}] ×失敗(文字コード不明): {rel_path}/{filename}")
+                    logger.error(f"[{processed_count}] ×失敗(文字コード不明): {rel_path}/{filename}")
 
             else:
                 # 画像ファイルなどはそのままスキップ
                 # （入力フォルダと出力フォルダが同じため、コピー不要）
                 image_count += 1
 
-    print("-" * 30)
-    print(f"【処理完了】")
-    print(f"変換したHTML: {processed_count} 本")
-    print(f"コピーした画像他: {image_count} ファイル")
+    logger.info("-" * 30)
+    logger.info("【処理完了】")
+    logger.info(f"変換したHTML: {processed_count} 本")
+    logger.info(f"コピーした画像他: {image_count} ファイル")
 
