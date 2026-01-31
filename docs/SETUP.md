@@ -8,9 +8,8 @@
 
 ## 前提条件
 
-- Googleアカウント（@gmail.comまたはGoogle Workspace）
-- Google CloudConsoleへのアクセス権限
-- 投稿対象のBloggerブログ（すでに所有）
+- Googleアカウント（@gmail.com）
+- 投稿対象のBloggerブログ（投稿権限があること）
 - インターネット接続
 
 ## ステップ1: Google Cloudプロジェクトの作成
@@ -322,4 +321,4 @@ Google Cloud Consoleで現在の使用状況を確認できます：
 
 ---
 
-**最終更新**: 2026年1月25日
+**最終更新**: 2026年1月28日

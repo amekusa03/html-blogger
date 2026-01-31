@@ -1,0 +1,88 @@
+<?xml version='1.0' encoding='utf-8'?>
+<interface version="1.5" author="PygubuDesigner 0.41.4">
+  <project>
+    <settings>
+      <setting id="name">logtext</setting>
+      <setting id="description">text_widget = Tkinter.Text(root, height=20, width=100)
+text_widget.pack(pady=10)   </setting>
+      <setting id="template">widgetds</setting>
+      <setting id="main_widget">toplevel1</setting>
+      <setting id="module_namespace" />
+      <setting id="module_name">test</setting>
+      <setting id="main_classname">ctest</setting>
+      <setting id="output_dir">test</setting>
+      <setting id="builder_namespace">custom_widgets</setting>
+      <setting id="output_dir2" />
+      <setting id="generate_code_onsave">False</setting>
+      <setting id="use_i18n">False</setting>
+      <setting id="all_ids_attributes">False</setting>
+      <setting id="import_tkvariables">False</setting>
+      <setting id="use_ttk_styledefinition_file">False</setting>
+      <setting id="use_window_centering_code">False</setting>
+      <setting id="ttk_style_definition_file" />
+    </settings>
+    <customwidgets />
+    <resources />
+  </project>
+  <object class="tk.Tk" id="TK" named="True">
+    <property name="geometry">800x600</property>
+    <child>
+      <object class="ttk.Frame" id="frame4">
+        <property name="width">200</property>
+        <layout manager="pack">
+          <property name="expand">true</property>
+          <property name="fill">both</property>
+          <property name="pady">10</property>
+          <property name="side">top</property>
+        </layout>
+        <child>
+          <object class="ttk.Scrollbar" id="scrollbar" named="True">
+            <property name="orient">horizontal</property>
+            <layout manager="pack">
+              <property name="fill">y</property>
+              <property name="side">right</property>
+            </layout>
+          </object>
+        </child>
+        <child>
+          <object class="tk.Text" id="text6">
+            <property name="height">20</property>
+            <property name="text" translatable="yes">TEST</property>
+            <property name="width">100</property>
+            <layout manager="pack">
+              <property name="side">top</property>
+            </layout>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="tk.Menu" id="menu4">
+    <property name="tearoff">false</property>
+    <property name="title" translatable="yes">AAA</property>
+    <child>
+      <object class="tk.Menuitem.Submenu" id="set" named="True">
+        <property name="label" translatable="yes">設定</property>
+        <property name="tearoff">false</property>
+        <child>
+          <object class="tk.Menuitem.Submenu" id="system" named="True">
+            <property name="label" translatable="yes">システム</property>
+            <property name="tearoff">false</property>
+          </object>
+        </child>
+        <child>
+          <object class="tk.Menuitem.Submenu" id="keyword" named="True">
+            <property name="label" translatable="yes">キーワード</property>
+            <property name="tearoff">false</property>
+          </object>
+        </child>
+        <child>
+          <object class="tk.Menuitem.Submenu" id="Location" named="True">
+            <property name="label" translatable="yes">場所</property>
+            <property name="tearoff">false</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

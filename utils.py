@@ -4,20 +4,21 @@ utils.py
 共通ユーティリティ関数
 """
 
+import sys
 import shutil
 import logging
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 # logging設定
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('utils.log', encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+log_handler = RotatingFileHandler('utils.log', maxBytes=10*1024*1024, backupCount=5, encoding='utf-8')
+log_handler.setFormatter(log_formatter)
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(log_handler)
+logger.addHandler(logging.StreamHandler())
 
 
 def read_counter(counter_file='counter.txt'):
@@ -122,3 +123,28 @@ def copy_files_by_extension(source_dir, output_dir, extensions, file_type_name, 
     logger.info(f"完了しました。合計 {copy_count} 個の{file_type_name}を {output_dir} にコピーしました。")
     
     return copy_count
+
+class ProgressBar:
+    """コンソールに進捗バーを表示するクラス"""
+    def __init__(self, total, prefix='', length=30):
+        self.total = total
+        self.prefix = prefix
+        self.length = length
+        self.current = 0
+        # 初期表示
+        self.print_progress(0)
+
+    def print_progress(self, iteration):
+        self.current = iteration
+        percent = ("{0:.1f}").format(100 * (iteration / float(self.total))) if self.total > 0 else "100.0"
+        filled_length = int(self.length * iteration // self.total) if self.total > 0 else self.length
+        bar = '█' * filled_length + '-' * (self.length - filled_length)
+        sys.stdout.write(f'\r{self.prefix} |{bar}| {percent}% ({iteration}/{self.total})')
+        sys.stdout.flush()
+        if iteration == self.total:
+            sys.stdout.write('\n')
+            sys.stdout.flush()
+            
+    def update(self):
+        """進捗を1つ進める"""
+        self.print_progress(self.current + 1)

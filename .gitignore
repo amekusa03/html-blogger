@@ -16,13 +16,16 @@ __pycache__/
 credentials.json
 token.pickle
 
-# Generated/intermediate folders (outputs from pipeline)
-addKeyword_upload/
-add_georss_point/
-ready_to_upload/
-ready_to_upload_images/
-ready_upload/
+# Generated/intermediate folders
 work/
+archive/
+ready_upload/
+finished/
+processed_images/
+blogger_html/
+cleaning_errors/
+backups/
+logs/
 
 # Generated files
 *.pyc
@@ -45,12 +48,18 @@ Todo.md
 memo-*
 media-man/
 reports/
+guidelines.md
+muda*.md
+
+# Local State & Database
+articles.db
+.img_session.json
+uploaded_atom_ids.txt
+counter.txt
+reports_index.html
 
 # MacOS
 .DS_Store
 
 # Logs
 *.log
-add_georss_point/0301hokai/hokai.html
-add_georss_point/0205tai/tai.html
-add_georss_point/0205tai/tai.html.backup_20260123_112057

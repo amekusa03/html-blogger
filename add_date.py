@@ -3,26 +3,28 @@ import os
 import re
 import unicodedata
 import calendar
-import sys
 import logging
 from pathlib import Path
 from config import get_config
+from utils import ProgressBar
+from logging.handlers import RotatingFileHandler
 
 # --- logging設定 ---
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('add_date.log', encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+log_handler = RotatingFileHandler('add_date.log', maxBytes=10*1024*1024, backupCount=5, encoding='utf-8')
+log_handler.setFormatter(log_formatter)
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(log_handler)
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(logging.WARNING)
+logger.addHandler(stream_handler)
 
 # --- 設定 ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
-INPUT_DIR = SCRIPT_DIR / get_config('ADD_DATE', 'INPUT_DIR', './work')
-OUTPUT_DIR = SCRIPT_DIR / get_config('ADD_DATE', 'OUTPUT_DIR', './work')
+INPUT_DIR = SCRIPT_DIR / get_config('ADD_DATE', 'input_dir', './work')
+OUTPUT_DIR = SCRIPT_DIR / get_config('ADD_DATE', 'output_dir', './work')
 
 def extract_date_from_html(html_text):
     """HTMLテキストから日付を抽出する"""
@@ -139,12 +141,12 @@ def add_date_to_html(html_path):
     try:
         # ファイル読み込み（複数エンコーディング対応）
         content = None
-        for encoding in ['utf-8', 'cp932', 'shift_jis']:
+        for encoding in ['utf-8', 'cp932', 'shift_jis', 'euc-jp']:
             try:
                 with open(html_path, 'r', encoding=encoding) as f:
                     content = f.read()
                 break
-            except:
+            except Exception:
                 continue
         
         if not content:
@@ -184,28 +186,36 @@ def add_date_to_html(html_path):
         logger.error(f"エラー: {html_path.name} - {e}", exc_info=True)
         return False
 
-def main():
+def run_add_date_pipeline():
+    """日付追加パイプラインを実行する"""
+    logger.info(f"--- 日付追加処理を開始します (対象フォルダ: {INPUT_DIR}) ---")
+
     if not INPUT_DIR.exists():
         logger.error(f"{INPUT_DIR} が見つかりません")
-        sys.exit(1)
+        return 0, 1
     
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     
     processed_count = 0
-    logger.info(f"--- 日付追加処理を開始します (対象フォルダ: {INPUT_DIR}) ---")
+    error_count = 0
     
-    for root, dirs, files in os.walk(str(INPUT_DIR)):
-        for filename in files:
-            if filename.lower().endswith(('.htm', '.html')):
-                src_path = Path(root) / filename
-                processed_count += 1
-                
-                logger.info(f"[{processed_count}] {src_path.relative_to(INPUT_DIR)}")
-                add_date_to_html(src_path)
+    target_files = [p for p in INPUT_DIR.rglob('*') if p.is_file() and p.suffix.lower() in ('.htm', '.html')]
+    
+    if target_files:
+        pbar = ProgressBar(len(target_files), prefix='AddDate')
+        for src_path in target_files:
+            try:
+                if add_date_to_html(src_path):
+                    processed_count += 1
+            except Exception:
+                error_count += 1
+            pbar.update()
     
     logger.info("-" * 30)
     logger.info("【処理完了】")
     logger.info(f"処理したHTML: {processed_count} 本")
+    
+    return processed_count, error_count
 
 if __name__ == '__main__':
-    main()
+    run_add_date_pipeline()

@@ -1,27 +1,27 @@
 import os
 import re      
 import shutil
-import sys
 import logging
 from pathlib import Path
-from bs4 import BeautifulSoup, NavigableString, Comment
+from bs4 import BeautifulSoup, Comment
 from config import get_config
+from utils import ProgressBar
 
 # logging設定
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('cleaner.log', encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+log_handler = logging.FileHandler('cleaner.log', encoding='utf-8')
+log_handler.setFormatter(log_formatter)
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(log_handler)
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(logging.WARNING) # プログレスバー表示のため、コンソールは警告以上のみ表示
+logger.addHandler(stream_handler)
 
 # --- 設定 ---
 SCRIPT_DIR = Path(__file__).parent.resolve()
-INPUT_DIR = SCRIPT_DIR / get_config('CLEANER', 'INPUT_DIR', './addKeyword_upload')  # 入力フォルダ
-OUTPUT_DIR = SCRIPT_DIR / get_config('CLEANER', 'OUTPUT_DIR', './work')  # 出力フォルダ
+OUTPUT_DIR = SCRIPT_DIR / get_config('CLEANER', 'output_dir', './work')  # 出力フォルダ
 
 def clean_html_for_blogger(html_text):
     """ブログ用にHTMLをクリーンアップする。
@@ -59,7 +59,6 @@ def clean_html_for_blogger(html_text):
         tag.decompose()
     
     # 5. コメントを削除
-    from bs4 import Comment
     for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
         comment.extract()
     
@@ -84,6 +83,21 @@ def clean_html_for_blogger(html_text):
         for attr in attrs_to_remove:
             del tag[attr]
     
+    # 8. 画像処理 (figure/figcaptionの追加)
+    # Bloggerでの表示互換性のため、figureではなくdivを使用する
+    for img in soup.find_all('img'):
+        # divタグ作成
+        div_wrapper = soup.new_tag('div', style="text-align:center; margin-bottom:1em;")
+        # alt取得
+        alt_text = img.get('alt')
+        alt_text = alt_text.strip() if alt_text is not None else "Image"
+        # caption作成
+        caption = soup.new_tag('div', style="font-size:small; color:#666;")
+        caption.string = alt_text
+        # imgをdivでラップし、captionを追加
+        img.wrap(div_wrapper)
+        div_wrapper.append(caption)
+
     # <body>と<head>の属性を削除（タグは保持）
     for tag_name in ['body', 'head']:
         tag = soup.find(tag_name)
@@ -121,18 +135,7 @@ def clean_html_for_blogger(html_text):
             "正規表現が過度に積極的な可能性があります。サンプルHTMLで検証してください。"
         )
         logger.error(error_msg)
-        sys.exit(1)
-    
-    # 10. 画像処理 (figcaptionの修正)
-    def replace_img(match):
-        img_tag = match.group(0)
-        alt_match = re.search(r'alt=["\'](.*?)["\']', img_tag, flags=re.IGNORECASE)
-        alt_text = alt_match.group(1).strip() if alt_match else "Image"
-        # centerタグを使わずstyleで調整
-        figcaption = f'<figcaption style="text-align:center;">{alt_text}</figcaption>'
-        return f'<figure style="text-align:center;">{img_tag}{figcaption}</figure>'
-
-    html_text = re.sub(r'<img[^>]*>', replace_img, html_text, flags=re.IGNORECASE)
+        raise ValueError(error_msg)
     
     # 11. HTML構造の正規化（<head>と<body>が存在しない場合は追加）
     soup_final = BeautifulSoup(html_text, 'html.parser')
@@ -172,67 +175,85 @@ def clean_html_for_blogger(html_text):
     
     return html_text.strip()
 
-# --- メイン処理 ---
-if __name__ == '__main__':
+def run_cleaning():
+    """
+    作業ディレクトリを初期化し、HTMLファイルをクリーニングする。
+    main.pyから呼び出されることを想定。
+    """
     # ✅ work/ ディレクトリをリセット（reports/ からコピー）
-    REPORTS_DIR = SCRIPT_DIR / get_config('CLEANER', 'REPORTS_DIR', './reports')
+    REPORTS_DIR = SCRIPT_DIR / get_config('DEFAULT', 'reports_dir', './reports')
     
     if not REPORTS_DIR.exists():
         logger.error(f"{REPORTS_DIR} が見つかりません")
-        sys.exit(1)
+        return 0, 1 # success, error
     
     # work/ を削除して再作成
     shutil.rmtree(str(OUTPUT_DIR), ignore_errors=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     
     # reports/ から work/ にコピー
+    logger.info(f"{REPORTS_DIR} から {OUTPUT_DIR} へファイルをコピーしています...")
     try:
         shutil.copytree(str(REPORTS_DIR), str(OUTPUT_DIR), dirs_exist_ok=True)
     except Exception as e:
         logger.error(f"ディレクトリコピーに失敗しました: {e}", exc_info=True)
-        sys.exit(1)
+        return 0, 1
     
-    SOURCE_DIR = OUTPUT_DIR
+    # エラー出力用ディレクトリの準備
+    ERROR_DIR = SCRIPT_DIR / 'cleaning_errors'
+    shutil.rmtree(str(ERROR_DIR), ignore_errors=True)
+    ERROR_DIR.mkdir(exist_ok=True)
 
     processed_count = 0
-    image_count = 0
+    error_count = 0
 
-    logger.info(f"変換処理を開始: {SOURCE_DIR}")
+    logger.info(f"HTMLクリーニング処理を開始: {OUTPUT_DIR}")
 
-    for root, dirs, files in os.walk(str(SOURCE_DIR)):
-        rel_path = os.path.relpath(root, str(SOURCE_DIR))
-        dest_dir = OUTPUT_DIR / rel_path if rel_path != '.' else OUTPUT_DIR
-        dest_dir.mkdir(parents=True, exist_ok=True)
+    files_to_process = [p for p in OUTPUT_DIR.rglob('*') if p.is_file() and p.suffix.lower() in ('.htm', '.html')]
+    
+    if not files_to_process:
+        logger.warning("クリーニング対象のHTMLファイルが見つかりません。")
+        return 0, 0
 
-        for filename in files:
-            src_path = Path(root) / filename
-            if filename.lower().endswith(('.htm', '.html')):
+    pbar = ProgressBar(len(files_to_process), prefix='Clean')
+
+    for src_path in files_to_process:
+        content = None
+        for encoding in ['utf-8', 'cp932', 'shift_jis', 'euc-jp']:
+            try:
+                with open(src_path, 'r', encoding=encoding) as f:
+                    content = f.read()
+                break
+            except Exception:
+                continue
+
+        if content:
+            try:
+                cleaned_html = clean_html_for_blogger(content)
+                with open(src_path, 'w', encoding='utf-8') as f:
+                    f.write(cleaned_html)
                 processed_count += 1
-                base_name = src_path.stem
-                dest_path = dest_dir / f"{base_name}.html"
+            except Exception as e:
+                logger.error(f"HTMLクリーニングエラー: {src_path.name} - {e}", exc_info=True)
+                error_count += 1
+                # エラーファイルを退避
+                try:
+                    shutil.move(str(src_path), str(ERROR_DIR / src_path.name))
+                    logger.info(f"エラーファイルを退避しました: {src_path.name} -> {ERROR_DIR.name}/")
+                except Exception as move_error:
+                    logger.error(f"エラーファイルの退避に失敗: {move_error}")
+        else:
+            logger.error(f"文字コード不明でスキップ: {src_path.name}")
+            error_count += 1
+        
+        pbar.update()
 
-                content = None
-                # 文字コードの判定
-                for encoding in ['utf-8', 'cp932', 'shift_jis']:
-                    try:
-                        with open(src_path, 'r', encoding=encoding) as f:
-                            content = f.read()
-                        break
-                    except:
-                        continue
+    logger.info(f"完了: HTMLクリーニング {processed_count}件")
+    return processed_count, error_count
 
-                if content:
-                    cleaned = clean_html_for_blogger(content)
-                    with open(str(dest_path), 'w', encoding='utf-8') as f:
-                        f.write(cleaned)
-                    processed_count += 1
-                else:
-                    logger.error(f"文字コード不明: {rel_path}/{filename}")
-
-            else:
-                # 画像ファイルなどはそのままスキップ
-                # （入力フォルダと出力フォルダが同じため、コピー不要）
-                image_count += 1
-
-    logger.info(f"完了: HTML変換{processed_count}本, 画像{image_count}ファイル")
-
+# --- メイン処理 ---
+if __name__ == '__main__':
+    try:
+        run_cleaning()
+    except Exception as e:
+        logger.critical(f"予期せぬエラーが発生しました: {e}", exc_info=True)

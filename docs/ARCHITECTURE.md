@@ -153,7 +153,6 @@ Blogger (オンライン)
 
 # 出力
 - work/{LOCATION_CODE}/index.html
-- work/{LOCATION_CODE}/index.html.backup_... (自動バックアップ)
 ```
 
 ### 2️⃣ add_georss_point.py
@@ -265,7 +264,7 @@ Blogger (オンライン)
 # 処理
 - Google Blogger API v3 認証
 - 各エントリを投稿
-- レート制限を遵守（15秒間隔）
+- レート制限を遵守（1秒間隔）
 
 # 出力
 - Blogger (投稿作成)
@@ -296,7 +295,7 @@ OUTPUT_FOLDER = ./work
 ENABLED = true
 INPUT_FOLDER = ./work
 OUTPUT_FOLDER = ./work
-WATERMARK = © HTMLtoBlogger
+WATERMARK = YourBlog # 任意設定
 
 [OPEN_BLOGGER]
 ENABLED = true
@@ -319,18 +318,18 @@ BLOG_URL = https://myblog.blogspot.com
 ENABLED = true
 INPUT_FOLDER = ./ready_load
 OUTPUT_FOLDER = ./finished
-DELAY_SECONDS = 15
+DELAY_SECONDS = 1
 ```
 
 ### keywords.xml
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <keywords>
-    <Mastkeywords>
+    <Mastkeywords>   # 必ず登録されるラベルキーワード
         <word>キーワード1</word>
         <word>キーワード2</word>
     </Mastkeywords>
-    <Hitkeywords>
+    <Hitkeywords>    # 本文にあれば登録されるラベルキーワード
         <word>キーワード3</word>
         <word>キーワード4</word>
     </Hitkeywords>
@@ -342,9 +341,9 @@ DELAY_SECONDS = 15
 <?xml version="1.0" encoding="UTF-8"?>
 <locations>
     <location>
-        <name>タイ</name>
-        <latitude>15.8700</latitude>
-        <longitude>100.9925</longitude>
+        <name>タイ</name>  # 地域
+        <latitude>15.8700</latitude>   # 緯度
+        <longitude>100.9925</longitude>   # 経度
     </location>
     <location>
         <name>東京</name>
@@ -399,4 +398,4 @@ DELAY_SECONDS = 15
 
 ---
 
-**最終更新**: 2026年1月25日
+**最終更新**: 2026年1月28日

@@ -2,7 +2,6 @@
 <root>
     <!-- 必ず追加するキーワード -->
     <Mastkeywords>
-        <word>旅行記</word>
         <word>アウトドア</word>
     </Mastkeywords>
     <!-- 本文内にあれば追加するキーワード -->
@@ -12,6 +11,5 @@
         <word>キャンプ</word>
         <word>島</word>
         <word>ダイビング</word>
-        <word>列車</word>
     </Hitkeywords>
 </root>
