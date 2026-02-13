@@ -1,30 +1,27 @@
 # -*- coding: utf-8 -*-
 import os
-import re
+import re      
+from json5 import load    
+from pathlib import Path
 import unicodedata
 import calendar
 import logging
-from pathlib import Path
-from config import get_config
-from utils import ProgressBar
-from logging.handlers import RotatingFileHandler
+from logging import config, getLogger
+from parameter import config
+from file_class import SmartFile
 
-# --- logging設定 ---
-log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-log_handler = RotatingFileHandler('add_date.log', maxBytes=10*1024*1024, backupCount=5, encoding='utf-8')
-log_handler.setFormatter(log_formatter)
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(log_handler)
-stream_handler = logging.StreamHandler()
-stream_handler.setLevel(logging.WARNING)
-logger.addHandler(stream_handler)
+# logging設定
+with open('./data/log_config.json5', 'r') as f:
+  logging.config.dictConfig(load(f)) 
+logger = getLogger(__name__)
 
 # --- 設定 ---
-SCRIPT_DIR = Path(__file__).parent.resolve()
-INPUT_DIR = SCRIPT_DIR / get_config('ADD_DATE', 'input_dir', './work')
-OUTPUT_DIR = SCRIPT_DIR / get_config('ADD_DATE', 'output_dir', './work')
+
+# 入力元フォルダ
+input_dir = config['find_date']['input_dir'].lstrip('./')
+# 出力先フォルダ
+output_dir = config['find_date']['output_dir'].lstrip('./')
+html_extensions = config['common']['html_extensions']
 
 def extract_date_from_html(html_text):
     """HTMLテキストから日付を抽出する"""
@@ -131,8 +128,8 @@ def extract_date_from_html(html_text):
             return ""
     
     # すべての必須フィールドがそろった場合のみ日付を確定
-    if start_day is not None and month is not None and year is not None and day is not None:
-        extracted_date = f"{year}-{month}-{day}"
+    if month is not None and year is not None and day is not None:
+        extracted_date = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
     
     return extracted_date
 
@@ -141,13 +138,8 @@ def add_date_to_html(html_path):
     try:
         # ファイル読み込み（複数エンコーディング対応）
         content = None
-        for encoding in ['utf-8', 'cp932', 'shift_jis', 'euc-jp']:
-            try:
-                with open(html_path, 'r', encoding=encoding) as f:
-                    content = f.read()
-                break
-            except Exception:
-                continue
+        with open(html_path, 'r', encoding='utf-8',) as f:
+            content = f.read()
         
         if not content:
             logger.error(f"失敗(文字コード不明): {html_path.name}")
@@ -177,45 +169,50 @@ def add_date_to_html(html_path):
             with open(html_path, 'w', encoding='utf-8') as f:
                 f.write(content)
             
-            return True
+            return html_path
         else:
             logger.warning("Dateが見つかりません")
-            return True  # エラーではないので継続
+            return html_path  # エラーではないので継続
     
     except Exception as e:
         logger.error(f"エラー: {html_path.name} - {e}", exc_info=True)
         return False
 
-def run_add_date_pipeline():
-    """日付追加パイプラインを実行する"""
-    logger.info(f"--- 日付追加処理を開始します (対象フォルダ: {INPUT_DIR}) ---")
-
-    if not INPUT_DIR.exists():
-        logger.error(f"{INPUT_DIR} が見つかりません")
-        return 0, 1
+def run(result_queue):
+    if not Path(input_dir).exists():
+        logger.error(f"{input_dir} が見つかりません")
+        return False
     
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     processed_count = 0
-    error_count = 0
+    logger.info(f"--- 日付追加処理を開始します (対象フォルダ: {input_dir}) ---")
     
-    target_files = [p for p in INPUT_DIR.rglob('*') if p.is_file() and p.suffix.lower() in ('.htm', '.html')]
-    
-    if target_files:
-        pbar = ProgressBar(len(target_files), prefix='AddDate')
-        for src_path in target_files:
-            try:
-                if add_date_to_html(src_path):
-                    processed_count += 1
-            except Exception:
-                error_count += 1
-            pbar.update()
-    
+    for root, dirs, files in os.walk(str(input_dir)):
+        for filename in files:
+            if filename.lower().endswith(tuple(html_extensions)):
+                src_path = Path(root) / filename
+                processed_count += 1
+                
+                logger.info(f"[{processed_count}] {src_path.relative_to(input_dir)}")
+                files = SmartFile(add_date_to_html(SmartFile(src_path)))
+                files.status = '✔'
+                files.extensions = 'html'
+                files.disp_path = files.name
+                result_queue.put(files)     
     logger.info("-" * 30)
     logger.info("【処理完了】")
     logger.info(f"処理したHTML: {processed_count} 本")
-    
-    return processed_count, error_count
 
+import queue
+
+# --- メイン処理 ---
 if __name__ == '__main__':
-    run_add_date_pipeline()
+    
+    result_queue=queue.Queue()
+    try:
+        run(result_queue)
+    except KeyboardInterrupt:
+        logger.info("処理が中断されました。")
+    except Exception as e:
+        logger.critical(f"予期せぬエラーが発生しました: {e}", exc_info=True)

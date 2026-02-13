@@ -17,15 +17,6 @@ credentials.json
 token.pickle
 
 # Generated/intermediate folders
-work/
-archive/
-ready_upload/
-finished/
-processed_images/
-blogger_html/
-cleaning_errors/
-backups/
-logs/
 
 # Generated files
 *.pyc
@@ -35,31 +26,24 @@ dist/
 build/
 
 # Backup/old files
-*_old*
-*_org*
 *.bak
-uploader.py2
-cleaner.py_org1
-ls.txt
 
 # Specific files to exclude
-Blogger メディア マネージャー* 
 Todo.md
-memo-*
-media-man/
-reports/
+data/backup
+data/history
+data/work
+data/report
+data/log
+data/media_man
+data/serialization
+data/upload
+data/*.html
+ゴミ箱
 guidelines.md
-muda*.md
 
 # Local State & Database
-articles.db
-.img_session.json
-uploaded_atom_ids.txt
-counter.txt
-reports_index.html
 
 # MacOS
 .DS_Store
 
-# Logs
-*.log

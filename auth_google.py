@@ -1,43 +1,37 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 import os
+import sys
+from json5 import load    
 import pickle
-import logging
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
-from config import get_config
+
+import logging
+from logging import config, getLogger
+from parameter import config,update_serial,get_serial
 
 # --- ロギング設定 ---
-log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-log_handler = RotatingFileHandler('google_auth.log', maxBytes=10*1024*1024, backupCount=5, encoding='utf-8')
-log_handler.setFormatter(log_formatter)
+# logging設定
+with open('./data/log_config.json5', 'r') as f:
+  logging.config.dictConfig(load(f)) 
+logger = getLogger(__name__)
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(log_handler)
-logger.addHandler(logging.StreamHandler())
-
-# 外部ライブラリの技術的なログを抑制
-logging.getLogger('googleapiclient').setLevel(logging.ERROR)
-logging.getLogger('google_auth_oauthlib').setLevel(logging.ERROR)
-logging.getLogger('urllib3').setLevel(logging.ERROR)
 
 # --- 設定 ---
-SCRIPT_DIR = Path(__file__).parent.resolve()
-SCOPES = [get_config('UPLOADER', 'scopes', 'https://www.googleapis.com/auth/blogger')]
-
+scopes = config['auth_google']['scopes']
+credentials_file = config['auth_google']['credentials_file']
+token_file = config['auth_google']['token_file']
+    
 def get_blogger_service():
     """Google Blogger API サービスオブジェクトを取得"""
-    credentials_file = SCRIPT_DIR / 'credentials.json'
-    if not credentials_file.exists():
+    if not Path(credentials_file).exists():
         raise FileNotFoundError('credentials.json が見つかりません。Google Cloud Console から OAuth2 認証情報をダウンロードしてください。')
     
     creds = None
-    token_file = SCRIPT_DIR / 'token.pickle'
-    if token_file.exists():
+    if Path(token_file).exists():
         try:
             with open(str(token_file), 'rb') as token:
                 creds = pickle.load(token)
@@ -56,14 +50,14 @@ def get_blogger_service():
         
         if not creds:
             try:
-                flow = InstalledAppFlow.from_client_secrets_file(str(SCRIPT_DIR / 'credentials.json'), SCOPES)
+                flow = InstalledAppFlow.from_client_secrets_file(str(credentials_file), scopes)
                 creds = flow.run_local_server(port=0)
                 logger.info('新規認証に成功しました。')
             except Exception as e:
                 raise Exception(f'Google 認証に失敗しました: {e}')
         
         try:
-            with open(str(SCRIPT_DIR / 'token.pickle'), 'wb') as token:
+            with open(str(token_file), 'wb') as token:
                 pickle.dump(creds, token)
         except Exception as e:
             logger.warning(f'token.pickle の保存エラー: {e}')

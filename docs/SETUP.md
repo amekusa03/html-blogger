@@ -115,7 +115,7 @@ APIとサービス → 認証情報
 htmltobrogger/
 ├── html_tobrogger.py
 ├── credentials.json  ← ここに配置
-├── add_keywords.py
+├── find_keywords.py
 ├── ...
 ```
 
@@ -132,8 +132,8 @@ htmltobrogger/
    `{BLOG_ID}` の数字をメモしておきます
 
 ### 5.2 ブログIDを設定
-
-`config.ini`の`[OPEN_BLOGGER]`セクションを編集：
+初回起動時に設定ウィザードが表示されるため、手動設定は必須ではありません。
+手動で設定する場合は、`config.json5`の`[OPEN_BLOGGER]`セクションを編集します：
 
 ```ini
 [OPEN_BLOGGER]

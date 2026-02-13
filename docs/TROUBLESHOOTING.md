@@ -128,7 +128,7 @@ venv\Scripts\activate  # Windows
 
 **解決策**:
 1. `python html_tobrogger.py` でGUIを起動
-2. 「アップロード」ボタンを押す
+2. 「次へ」ボタンを押して処理を進め、アップロード段階まで進む
 3. ブラウザで Google 認証を完了
 4. `token.pickle`が自動生成されるのを待つ
 
@@ -161,24 +161,15 @@ rm token.pickle
 
 1. ファイルを確認
 ```
-reports/
+report/
 ├── 0205tai/          ← フォルダ名は日本語OK
 │   └── index.html    ← ファイル名はASCII
 ├── 0209nori/
 │   └── index.html
 ```
 
-2. ファイル構造
-```bash
-# 正しい構造
-reports/{LOCATION_CODE}/index.html
-
-# NG: ファイルが直接 reports/ に置かれている
-reports/index.html  # ❌
-
-# NG: ファイル名が日本語
-reports/0205tai/太郎.html  # ❌
-```
+2. リンクについて
+#　画像のリンクはreport内で収まるようにして下さい
 
 ---
 
@@ -212,7 +203,7 @@ reports/0205tai/太郎.html  # ❌
 
 **原因**: 以下のいずれか：
 - HTMLのタイトルや見出しに地域名が含まれていない
-- `georss_point.xml`の形式が正しくない
+- `locate.xml`の形式が正しくない
 - OpenStreetMap (Nominatim) が地域名を認識できない
 
 **解決策**:
@@ -222,7 +213,7 @@ reports/0205tai/太郎.html  # ❌
 <title>タイの観光地</title>  <!-- "タイ" が認識される -->
 ```
 
-2. `georss_point.xml`の形式を確認
+2. `locate.xml`の形式を確認
 ```xml
 <location>
     <name>タイ</name>
@@ -232,12 +223,12 @@ reports/0205tai/太郎.html  # ❌
 ```
 
 3. 地域名を手動で追加
-- テキストエディタで `georss_point.xml` を開く
+- テキストエディタで `locate.xml` を開く
 - 必要な位置情報を追加
 
 4. OpenStreetMap で検証
 - https://www.openstreetmap.org/search で地域名を検索
-- 座標を確認して `georss_point.xml` に追加
+- 座標を確認して `locate.xml` に追加
 
 ---
 
@@ -247,7 +238,7 @@ reports/0205tai/太郎.html  # ❌
 
 **解決策**:
 1. タイトルに地域名を含める（自動再取得）
-2. 手動で `georss_point.xml` に位置情報を追加
+2. 手動で `locate.xml` に位置情報を追加
 3. 処理を再実行
 
 ---
@@ -290,7 +281,7 @@ image/
 
 **解決策**:
 
-1. `config.ini` を確認
+1. `config.json5` を確認
 ```ini
 [PHOROS_DELEXIF_ADDWATERMARK]
 ENABLED = true  # true に設定
@@ -305,12 +296,12 @@ ENABLED = true  # true に設定
 #### Q: ウォーターマーク が表示されない
 
 **原因**: 以下のいずれか：
-- `config.ini` でウォーターマーク機能が無効化されている
+- `config.json5` でウォーターマーク機能が無効化されている
 - フォントがインストールされていない
 
 **解決策**:
 
-1. `config.ini` を確認
+1. `config.json5` を確認
 ```ini
 [PHOROS_DELEXIF_ADDWATERMARK]
 ENABLED = true
@@ -342,7 +333,7 @@ sudo apt-get install fonts-liberation
 ```bash
 # Blogger → ダッシュボード → URL確認
 # https://www.blogger.com/blog/posts/{BLOG_ID}
-# BLOG_ID を config.ini に設定
+# BLOG_ID を config.json5 に設定
 ```
 
 2. 認証情報を確認
@@ -486,7 +477,7 @@ python html_tobrogger.py > debug.log 2>&1
 ```bash
 # Linux/Mac
 xmllint --noout keywords.xml
-xmllint --noout georss_point.xml
+xmllint --noout locate.xml
 ```
 
 ---

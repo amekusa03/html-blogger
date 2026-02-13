@@ -1,42 +1,88 @@
 import os
 import re      
-import shutil
-import logging
+from json5 import load    
 from pathlib import Path
 from bs4 import BeautifulSoup, Comment
-from config import get_config
-from utils import ProgressBar
+import logging
+from logging import config, getLogger
+from parameter import config
+from cons_progressber import ProgressBar
+from file_class import SmartFile
 
 # logging設定
-log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-log_handler = logging.FileHandler('cleaner.log', encoding='utf-8')
-log_handler.setFormatter(log_formatter)
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(log_handler)
-stream_handler = logging.StreamHandler()
-stream_handler.setLevel(logging.WARNING) # プログレスバー表示のため、コンソールは警告以上のみ表示
-logger.addHandler(stream_handler)
-
+with open('./data/log_config.json5', 'r') as f:
+  logging.config.dictConfig(load(f)) 
+logger = getLogger(__name__)
 # --- 設定 ---
-SCRIPT_DIR = Path(__file__).parent.resolve()
-OUTPUT_DIR = SCRIPT_DIR / get_config('CLEANER', 'output_dir', './work')  # 出力フォルダ
+# 入力元フォルダ
+input_dir = config['clean_html']['input_dir'].lstrip('./')
+# 出力先フォルダ
+output_dir = config['clean_html']['output_dir'].lstrip('./')
 
-def clean_html_for_blogger(html_text):
+html_extensions = config['common']['html_extensions']
+
+# 画像基底サイズ
+IMAGE_BASIC_SIZE = {
+    'landscape': [
+        {'w': 640, 'h': 480},
+        {'w': 400, 'h': 300},
+        {'w': 320, 'h': 240},
+        {'w': 200, 'h': 150}
+    ],
+    'portrait': [
+        {'w': 480, 'h': 640},
+        {'w': 300, 'h': 400},
+        {'w': 240, 'h': 320},
+        {'w': 150, 'h': 200}
+    ]
+}
+def resize_logic(w, h):
+    """画像サイズを適切なサイズにリサイズ（大きい方に合わせる）"""
+    mode = 'landscape' if w >= h else 'portrait'
+    # targetsは大きい順にソートされている
+    targets = IMAGE_BASIC_SIZE[mode]
+    
+    # 小さいサイズから順にチェック
+    for target in reversed(targets):
+        # 元の幅がターゲットの幅以下なら、そのターゲットサイズを採用
+        if w <= target['w']:
+            return target['w'], target['h']
+    # どのサイズよりも大きい場合は、最大のサイズを返す
+    # will been defulted to the largest size
+    return targets[0]['w'], targets[0]['h']
+
+def run(result_queue):
+    all_files = list(Path(input_dir).rglob('*'))
+
+    for path in all_files:
+        src_file = SmartFile(path) 
+        if src_file.is_file():
+            if src_file.suffix.lower() in html_extensions:
+                src_file = clean_html_for_blogger(src_file)
+                src_file.status = '✔'
+                src_file.extensions = 'html'
+                src_file.disp_path = src_file.name
+                result_queue.put(src_file) 
+
+
+
+def clean_html_for_blogger(files):
     """ブログ用にHTMLをクリーンアップする。
     重大削除チェックは本文テキスト同士の比較で行い、headやscript削除による誤検知を避ける。
     """
-    # 元のHTMLを保持（後でテキスト長を比較するため）
-    original_html = html_text
-    
+    for encoding in ['utf-8', 'cp932', 'shift_jis']:
+        try:
+            html_text = files.read_text(encoding=encoding, errors='ignore')
+            break
+        except:
+            continue    
+        
     # 1. 改行とタブを一旦削除（後で<br>に基づいて再整理するため）
     html_text = re.sub(r'[\r\n\t]+', '', html_text)    
         
     # 2. タイトルの抽出（安全な判定）
     title_match = re.search(r'<title>(.*?)</title>', html_text, flags=re.IGNORECASE | re.DOTALL)
     extracted_title = ""
-    
     # 判定順序の整理：titleタグがあるか -> 中身があるか
     if title_match and title_match.group(1).strip():
         extracted_title = title_match.group(1).strip()
@@ -52,12 +98,10 @@ def clean_html_for_blogger(html_text):
 
     # 3. BeautifulSoupを使って不要なタグと属性を削除
     soup = BeautifulSoup(html_text, 'html.parser')
-    
     # 4. 不要なタグを完全に削除（タグとその中身）
-    # <head>, <title>, <search>, <time>, <georss> は保持する
+    # <script>, <style>, <meta>, は削除する
     for tag in soup.find_all(['script', 'style', 'meta']):
         tag.decompose()
-    
     # 5. コメントを削除
     for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
         comment.extract()
@@ -69,24 +113,25 @@ def clean_html_for_blogger(html_text):
             tag.unwrap()
     
     # 7. すべてのタグから不要な属性を削除
-    bad_attrs = ['bgcolor', 'style', 'class', 'id', 'width', 'height', 'border', 
+    unuse_attrs = ['bgcolor', 'style', 'class', 'id', 'width', 'height', 'border', 
                  'align', 'valign', 'cellspacing', 'cellpadding', 'lang', 
                  'http-equiv', 'content', 'font-family', 'font-color', 'color']
     
     for tag in soup.find_all(True):  # すべてのタグ
-        # imgタグは特別扱い（width/heightは後で処理）
+        # imgタグはsrc, alt, width, heightのみ保持
         if tag.name == 'img':
             attrs_to_remove = [attr for attr in tag.attrs if attr not in ['src', 'alt', 'width', 'height']]
         else:
-            attrs_to_remove = [attr for attr in tag.attrs if attr in bad_attrs]
+            attrs_to_remove = [attr for attr in tag.attrs if attr in unuse_attrs]
         
         for attr in attrs_to_remove:
             del tag[attr]
     
-    # 8. 画像処理 (figure/figcaptionの追加)
+    # 画像処理 (figure/figcaptionの追加)
     # Bloggerでの表示互換性のため、figureではなくdivを使用する
     for img in soup.find_all('img'):
-        # divタグ作成
+        if img.parent and img.parent.name == 'div':
+            continue  # すでにdivでラップされている場合はスキップ
         div_wrapper = soup.new_tag('div', style="text-align:center; margin-bottom:1em;")
         # alt取得
         alt_text = img.get('alt')
@@ -94,6 +139,13 @@ def clean_html_for_blogger(html_text):
         # caption作成
         caption = soup.new_tag('div', style="font-size:small; color:#666;")
         caption.string = alt_text
+        # 画像サイズ属性の整理
+        width = img.get('width')
+        height = img.get('height')
+        if width is not None and height is not None:
+            # 縦横がある場合調整
+            resize_logic(int(width), int(height))
+            img['width'], img['height'] = resize_logic(int(width), int(height))
         # imgをdivでラップし、captionを追加
         img.wrap(div_wrapper)
         div_wrapper.append(caption)
@@ -122,21 +174,11 @@ def clean_html_for_blogger(html_text):
     
     # 【重大エラーチェック】コンテンツ削除検出
     # head/script/styleなどの削除で大きく減ることがあるため、本文テキスト同士で比較する
-    original_plain = re.sub(r'<[^>]*>', '', original_html)
-    cleaned_plain = re.sub(r'<[^>]*>', '', html_text)
-    original_length = len(original_plain)
-    cleaned_length = len(cleaned_plain)
-    
-    # 本文が極端に削られていないかチェック（20%未満なら中断）
-    if original_length > 100 and cleaned_length < original_length * 0.2:
-        error_msg = (
-            "HTML クリーニング時にコンテンツが過度に削除されました。\n"
-            f"元(本文): {original_length}文字 → 削除後: {cleaned_length}文字\n"
-            "正規表現が過度に積極的な可能性があります。サンプルHTMLで検証してください。"
-        )
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-    
+    # original_plain = re.sub(r'<[^>]*>', '', original_html)
+    # cleaned_plain = re.sub(r'<[^>]*>', '', html_text)
+    # original_length = len(original_plain)
+    # cleaned_length = len(cleaned_plain)
+       
     # 11. HTML構造の正規化（<head>と<body>が存在しない場合は追加）
     soup_final = BeautifulSoup(html_text, 'html.parser')
     
@@ -172,88 +214,21 @@ def clean_html_for_blogger(html_text):
             soup_final.append(body_tag)
     
     html_text = str(soup_final)
-    
-    return html_text.strip()
 
-def run_cleaning():
-    """
-    作業ディレクトリを初期化し、HTMLファイルをクリーニングする。
-    main.pyから呼び出されることを想定。
-    """
-    # ✅ work/ ディレクトリをリセット（reports/ からコピー）
-    REPORTS_DIR = SCRIPT_DIR / get_config('DEFAULT', 'reports_dir', './reports')
-    
-    if not REPORTS_DIR.exists():
-        logger.error(f"{REPORTS_DIR} が見つかりません")
-        return 0, 1 # success, error
-    
-    # work/ を削除して再作成
-    shutil.rmtree(str(OUTPUT_DIR), ignore_errors=True)
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    
-    # reports/ から work/ にコピー
-    logger.info(f"{REPORTS_DIR} から {OUTPUT_DIR} へファイルをコピーしています...")
-    try:
-        shutil.copytree(str(REPORTS_DIR), str(OUTPUT_DIR), dirs_exist_ok=True)
-    except Exception as e:
-        logger.error(f"ディレクトリコピーに失敗しました: {e}", exc_info=True)
-        return 0, 1
-    
-    # エラー出力用ディレクトリの準備
-    ERROR_DIR = SCRIPT_DIR / 'cleaning_errors'
-    shutil.rmtree(str(ERROR_DIR), ignore_errors=True)
-    ERROR_DIR.mkdir(exist_ok=True)
 
-    processed_count = 0
-    error_count = 0
+    files.write_text(html_text, encoding='utf-8')
+    return files
 
-    logger.info(f"HTMLクリーニング処理を開始: {OUTPUT_DIR}")
 
-    files_to_process = [p for p in OUTPUT_DIR.rglob('*') if p.is_file() and p.suffix.lower() in ('.htm', '.html')]
-    
-    if not files_to_process:
-        logger.warning("クリーニング対象のHTMLファイルが見つかりません。")
-        return 0, 0
-
-    pbar = ProgressBar(len(files_to_process), prefix='Clean')
-
-    for src_path in files_to_process:
-        content = None
-        for encoding in ['utf-8', 'cp932', 'shift_jis', 'euc-jp']:
-            try:
-                with open(src_path, 'r', encoding=encoding) as f:
-                    content = f.read()
-                break
-            except Exception:
-                continue
-
-        if content:
-            try:
-                cleaned_html = clean_html_for_blogger(content)
-                with open(src_path, 'w', encoding='utf-8') as f:
-                    f.write(cleaned_html)
-                processed_count += 1
-            except Exception as e:
-                logger.error(f"HTMLクリーニングエラー: {src_path.name} - {e}", exc_info=True)
-                error_count += 1
-                # エラーファイルを退避
-                try:
-                    shutil.move(str(src_path), str(ERROR_DIR / src_path.name))
-                    logger.info(f"エラーファイルを退避しました: {src_path.name} -> {ERROR_DIR.name}/")
-                except Exception as move_error:
-                    logger.error(f"エラーファイルの退避に失敗: {move_error}")
-        else:
-            logger.error(f"文字コード不明でスキップ: {src_path.name}")
-            error_count += 1
-        
-        pbar.update()
-
-    logger.info(f"完了: HTMLクリーニング {processed_count}件")
-    return processed_count, error_count
+import queue
 
 # --- メイン処理 ---
 if __name__ == '__main__':
+    
+    result_queue=queue.Queue()
     try:
-        run_cleaning()
+        run(result_queue)
+    except KeyboardInterrupt:
+        logger.info("処理が中断されました。")
     except Exception as e:
         logger.critical(f"予期せぬエラーが発生しました: {e}", exc_info=True)

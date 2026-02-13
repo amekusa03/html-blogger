@@ -9,17 +9,17 @@ htmltobrogger/
 │
 ├── 📄 html_tobrogger.py        ← メインGUIアプリケーション
 ├── 📄 config.py                ← 設定管理モジュール
-├── 📄 config.ini               ← 設定ファイル（ユーザー編集対象）
+├── 📄 config.json5               ← 設定ファイル（ユーザー編集対象）
 │
 ├── 📋 処理スクリプト
-│   ├── add_keywords.py         ① キーワード自動注入
-│   ├── add_georss_point.py     ② 位置情報（地理タグ）自動付与
-│   ├── cleaner.py              ③ HTMLクリーニング・メタデータ抽出
-│   ├── phot_exif_watemark.py   ④ 画像EXIF削除・ウォーターマーク追加
+│   ├── find_keywords.py         ① キーワード自動注入
+│   ├── find_locate.py     ② 位置情報（地理タグ）自動付与
+│   ├── clean_html.py              ③ HTMLクリーニング・メタデータ抽出
+│   ├── mod_image.py   ④ 画像EXIF削除・ウォーターマーク追加
 │   ├── open_blogger.py         ⑤ Blogger認証・ブラウザ起動
-│   ├── image_preparer.py       ⑥ 画像リネーム・統合
-│   ├── convert_atom.py         ⑦ Atomフィード生成
-│   └── uploader.py             ⑧ 自動投稿（Blogger API v3）
+│   ├── upload_image.py       ⑥ 画像アップロード支援
+│   ├── link_image.py         ⑦ 画像リンク編集
+│   └── upload_art.py             ⑧ 自動投稿（Blogger API v3）
 │
 ├── 📁 データフォルダ
 │   ├── reports/                ← 入力：ユーザーのHTMLファイル
@@ -56,7 +56,7 @@ htmltobrogger/
 │
 ├── 📝 設定ファイル
 │   ├── keywords.xml            ← メタキーワード定義（ユーザー編集）
-│   ├── georss_point.xml        ← 位置情報キャッシュ（自動更新）
+│   ├── locate.xml        ← 位置情報キャッシュ（自動更新）
 │   ├── credentials.json        ← Google認証（GitHubに含めない！）
 │   └── token.pickle            ← 認証トークン（自動生成）
 │
@@ -89,236 +89,145 @@ htmltobrogger/
 ## 処理パイプラインのデータフロー
 
 ```
-reports/                                    ← ユーザー入力
+① imort-file.py
+   ファイルチェック
+report/                                    ← ユーザー入力
    ↓
-① add_keywords.py
+backup/
+work/
+② serial-file.py
+   フォルダ除去、シリアル追加
+   ↓serial/
+work/ (HTML + 画像)
+   ↓
+③ cean-html.py
+   タグ除去・メタデータ抽出
+   ↓
+work/ (クリーニング済み HTML)
+   ↓
+④ find_keywords.py
    キーワード自動抽出・注入
    source: keywords.xml
    ↓
 work/ (修正版 HTML + 画像)
    ↓
-② add_georss_point.py
+⑤ find_location.py
    地理タグ自動付与
-   source: georss_point.xml
+   source: locate.xml
    ↓
 work/ (更新)
    ↓
-③ cleaner.py
-   タグ除去・メタデータ抽出
+⑥ find_date.py
+   日付付与
    ↓
-work/ (クリーニング済み HTML)
+work/ (更新)
    ↓
-④ phot_exif_watemark.py
+⑦ mod-image.py
    EXIF削除・ウォーターマーク追加
    ↓
 work/ (処理完了)
    ↓
-⑤ open_blogger.py
-   [ユーザー操作: メディアマネージャーで画像アップロード]
+⑧ upload_image.py
+image/ (画像)
+   Bloggerへ画像アップロード                 ←ユーザー操作  
    ↓
-Blogger メディア マネージャー.html (ダウンロード)
+⑨ analize_media_manager.py
+    メディアマネージャーファイル保存         ←ユーザー操作
+   メディアマネージャーファイル解析
    ↓
-⑥ image_preparer.py
-   画像リネーム・URL抽出
+⑩ link_html.py
+   URLリンク
    ↓
-image/ (リネーム済み画像)
-ready_load/ (投稿設定)
-   ↓
-⑦ convert_atom.py
-   Atomフィード生成
-   ↓
-ready_load/feed.atom
-   ↓
-⑧ uploader.py
+⑪ up_loader.py
+art_ready_load/ (投稿設定)
    自動投稿
    ↓
-finished/ (完了)
+history/ (完了)
 Blogger (オンライン)
-```
-
-## 主要スクリプトの詳細
-
-### 1️⃣ add_keywords.py
-**役割**: メタキーワード自動抽出・注入
-```python
-# 入力
-- reports/{LOCATION_CODE}/index.html
-- keywords.xml
-
-# 処理
-- HTMLタイトル・見出しからキーワード抽出
-- keywords.xml から マスターキーワード・ヒットキーワード取得
-- 重複排除・統合
-- <meta name="keywords"> タグを注入
-
-# 出力
-- work/{LOCATION_CODE}/index.html
-```
-
-### 2️⃣ add_georss_point.py
-**役割**: 地理タグ自動付与
-```python
-# 入力
-- work/{LOCATION_CODE}/index.html
-- georss_point.xml (位置情報キャッシュ)
-
-# 処理
-- HTMLから地名を抽出
-- Nominatim (OpenStreetMap) で座標検索
-- <georss:point> タグを注入
-- 検索結果をキャッシュ（API削減）
-
-# 出力
-- work/{LOCATION_CODE}/index.html (更新)
-- georss_point.xml (キャッシュ更新)
-```
-
-### 3️⃣ cleaner.py
-**役割**: HTMLクリーニング・メタデータ抽出
-```python
-# 入力
-- work/{LOCATION_CODE}/index.html
-
-# 処理
-- <b>, <font>, <span> などのフォーマット削除
-- 地理タグを一時保存
-- プレーンテキスト化
-- タイトル・日付・キーワード抽出
-
-# 出力
-- work/{LOCATION_CODE}/index.html (クリーニング済み)
-- メタデータ: title, date, keywords (内部保持)
-```
-
-### 4️⃣ phot_exif_watemark.py
-**役割**: 画像処理
-```python
-# 入力
-- work/{LOCATION_CODE}/*.jpg, *.png
-
-# 処理
-- EXIF メタデータ削除 (プライバシー保護)
-- ウォーターマーク追加（右下）
-- オプション：リサイズ可能
-
-# 出力
-- work/{LOCATION_CODE}/*.jpg (更新)
-```
-
-### 5️⃣ open_blogger.py
-**役割**: Blogger認証・メディアマネージャー起動
-```python
-# 入力
-- config.ini
-
-# 処理
-- ブラウザで Blogger 開く
-- ユーザーがメディアマネージャーで画像アップロード
-- BLOG_ID を抽出・保存
-
-# 出力
-- Blogger メディア マネージャー_[BLOG_ID].html
-- config.ini (BLOG_ID 更新)
-```
-
-### 6️⃣ image_preparer.py
-**役割**: 画像リネーム・URL抽出
-```python
-# 入力
-- work/{LOCATION_CODE}/*.jpg
-- Blogger メディア マネージャー.html
-
-# 処理
-- ファイル名を {LOCATION_CODE}{filename} に統一
-- Blogger HTML から 画像URLを抽出
-- ローカルファイル名とURLをマッピング
-
-# 出力
-- image/{LOCATION_CODE}{filename}
-- ready_load/image_mapping.json (URL対応)
-```
-
-### 7️⃣ convert_atom.py
-**役割**: Atomフィード生成
-```python
-# 入力
-- work/{LOCATION_CODE}/index.html (複数)
-- config.ini
-
-# 処理
-- 各HTMLからタイトル・内容・日付抽出
-- Atom 1.0 形式でフィード化
-- 各エントリに UUID 割り当て
-
-# 出力
-- ready_load/feed.atom
-```
-
-### 8️⃣ uploader.py
-**役割**: 自動投稿
-```python
-# 入力
-- ready_load/feed.atom
-- token.pickle / credentials.json
-
-# 処理
-- Google Blogger API v3 認証
-- 各エントリを投稿
-- レート制限を遵守（1秒間隔）
-
-# 出力
-- Blogger (投稿作成)
-- finished/ (フィーバックアップ)
-- uploaded_atom_ids.txt (重複防止ログ)
 ```
 
 ## 設定ファイルの詳細
 
-### config.ini
+### config.json5
 ```ini
-[ADD_KEYWORDS]
-ENABLED = true
-INPUT_FOLDER = ./reports
-OUTPUT_FOLDER = ./work
+; 共通設定
+[COMMON]
+TEST_MODE = true
+IMAGE_EXTENSIONS = .jpg, .jpeg, .png, .gif
+HTML_EXTENSIONS = .html, .htm
+XML_EXTENSIONS = .xml
 
-[ADD_GEORSS_POINT]
-ENABLED = true
-INPUT_FOLDER = ./work
-OUTPUT_FOLDER = ./work
+; Google認証設定
+[AUTH_GOOGLE]
+SCOPES = https://www.googleapis.com/auth/blogger
+CREDENTIALS_FILE = ./credentials.json
+TOKEN_FILE = ./token.pickle
 
-[CLEANER]
-ENABLED = true
-INPUT_FOLDER = ./work
-OUTPUT_FOLDER = ./work
+; ファイルインポート設定
+[IMPORT_FILE]
+INPUT_DIR = ./reports
+OUTPUT_DIR = ./work
+BACKUP = true
+BACKUP_DIR = ./backup
 
-[PHOROS_DELEXIF_ADDWATERMARK]
-ENABLED = true
-INPUT_FOLDER = ./work
-OUTPUT_FOLDER = ./work
-WATERMARK = YourBlog # 任意設定
+; HTMLクリーン設定
+[CLEAN_HTML]
+INPUT_DIR = ./work
+OUTPUT_DIR = ./work
 
-[OPEN_BLOGGER]
-ENABLED = true
-BLOG_ID = 1234567890123456789  # 自動設定される
+; キーワード検索設定
+[FIND_KEYWORD]
+INPUT_DIR = ./work
+OUTPUT_DIR = ./work
+KEYWORDS_XML_FILE = ./keywords.xml
 
-[IMAGE_PREPARER]
-ENABLED = true
-INPUT_FOLDER = ./work
-OUTPUT_FOLDER = ./image
-MEDIA_MANAGER_FOLDER = ./media-man
+; 位置情報検索設定
+[FIND_LOCATION]
+INPUT_DIR = ./work
+OUTPUT_DIR = ./work
+LOCATION_XML_FILE = ./locate.xml
+GEOCODE_RETRIES = 3
+GEOCODE_WAIT = 1.1
+GEOCODE_TIMEOUT = 10
+GEOCODE_DEBUG = false
 
-[CONVERT_ATOM]
-ENABLED = true
-INPUT_FOLDER = ./work
-OUTPUT_FOLDER = ./ready_load
-BLOG_TITLE = My Blog
-BLOG_URL = https://myblog.blogspot.com
+; 画像加工設定
+[MOD_IMAGE]
+INPUT_DIR = ./work
+OUTPUT_DIR = ./work
+WATERMARK_TEXT = しふとべる
 
-[UPLOADER]
-ENABLED = true
-INPUT_FOLDER = ./ready_load
-OUTPUT_FOLDER = ./finished
-DELAY_SECONDS = 1
+; 画像アップロード設定 (手動/準備)
+[UPLOAD_IMAGE]
+INPUT_DIR = ./work
+UPLOAD_DIR = ./image
+HISTORY_DIR = ./history
+
+; HTMLリンク設定
+[LINK_HTML]
+INPUT_DIR = ./work
+MEDIA_MANAGER_DIR = ./
+UPLOAD_DIR = ./ready_load
+
+; 記事アップロード設定
+[UPLOAD_ART]
+INPUT_DIR = ./ready_load
+UPLOAD_DIR = ./finished
+HISTORY_DIR = ./history
+BLOG_ID = 1234567890123456789
+DELAY_SECONDS = 1.1
+MAX_POSTS_PER_RUN = 5
+MAX_RETRIES = 3
+
+; GUI設定
+[GUI]
+REPORTS_DIR = ./reports
+WORK_DIR = ./work
+UPLOAD_DIR = ./ready_load
+HISTORY_DIR = ./history
+BACKUP_DIR = ./backup
+BLOGGER_URL = https://www.blogger.com/blogger.g?blogID=
+MEDIA_MANAGER_URL = https://www.blogger.com/mediamanager/album/
 ```
 
 ### keywords.xml
@@ -336,7 +245,7 @@ DELAY_SECONDS = 1
 </keywords>
 ```
 
-### georss_point.xml
+### locate.xml
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <locations>
@@ -365,37 +274,8 @@ DELAY_SECONDS = 1
 | google-api-python-client | Blogger API | ≥2.100.0 |
 | google-auth-httplib2 | Google認証 | ≥0.2.0 |
 | google-auth-oauthlib | OAuth2フロー | ≥1.2.0 |
-
-## エラーハンドリング戦略
-
-### 各段階での失敗処理
-
-| 段階 | エラー時の動作 | 継続可能 |
-|-----|-------------|--------|
-| add_keywords.py | 警告出力、キーワード未挿入 | ✅ Yes |
-| add_georss_point.py | 警告出力、タグ未挿入 | ✅ Yes |
-| cleaner.py | 警告出力、スキップ継続 | ✅ Yes |
-| phot_exif_watemark.py | ファイルごとにスキップ | ✅ Yes |
-| image_preparer.py | ファイルごとにスキップ | ✅ Yes |
-| convert_atom.py | エラーで中断 | ❌ No |
-| uploader.py | エラーで中断 | ❌ No |
-
-## パフォーマンス最適化
-
-### 処理時間の目安
-
-| 段階 | 100KB HTML | 1MB HTML | 10個画像 |
-|-----|-----------|---------|---------|
-| add_keywords.py | <1s | 1-2s | N/A |
-| add_georss_point.py | 1.2s+ | 1.2s+ | N/A |
-| cleaner.py | <1s | 1-2s | N/A |
-| phot_exif_watemark.py | N/A | N/A | 2-5s |
-| image_preparer.py | N/A | N/A | <1s |
-| convert_atom.py | <1s | 1-2s | N/A |
-| uploader.py | 30s+ | 30s+ | (レート制限) |
-
-⚠️ **注意**: add_georss_point.py は Nominatim API 呼び出し（1.1秒/回）で時間がかかります
+| pykakasi | 日本語変換 | ≥2.2.0 |
 
 ---
 
-**最終更新**: 2026年1月28日
+**最終更新**: 2026年2月12日
