@@ -12,7 +12,7 @@ from logging import config, getLogger
 from parameter import config,update_serial,get_serial
 from cons_progressber import ProgressBar
 from geopy.geocoders import Nominatim
-from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
+from geopy.exc import GeocoderTimedOut, GeocoderUnavailable, GeocoderQuotaExceeded
 from janome.tokenizer import Tokenizer
 from cons_progressber import ProgressBar
 from file_class import SmartFile
@@ -194,16 +194,23 @@ def find_location_in_html(files):
                     save_location_cache( spot, "", "")
                     location_cache[spot_lower] = (spot, "", "")
                     break
-                except (GeocoderTimedOut, GeocoderUnavailable) as e:
+                except (GeocoderTimedOut, GeocoderUnavailable, GeocoderQuotaExceeded) as e:
                     if attempt < geocode_retries - 1:
-                        logger.warning(f"ジオコーディング タイムアウト ({spot}): {e} - リトライ ({attempt+1}/{geocode_retries})")
-                        time.sleep(geocode_wait)
+                        # 指数バックオフ (Exponential Backoff) で待機時間を調整
+                        # 試行回数が増えるごとに待機時間を倍にする (例: wait * 1, wait * 2, wait * 4...)
+                        backoff_time = geocode_wait * (2 ** attempt)
+                        # 待機時間が長くなりすぎないように上限を設定 (例: 60秒)
+                        backoff_time = min(backoff_time, 60)
+                        logger.warning(f"ジオコーディング エラー ({spot}): {e} - {backoff_time}秒後にリトライ ({attempt+1}/{geocode_retries})")
+                        time.sleep(backoff_time)
                     else:
                         raise # 最終試行で失敗した場合、例外を再スロー（タイムアウトまたは利用不可）
         except GeocoderTimedOut:
             logger.warning(f"ジオコーディング リトライタイムアウト: {spot}")
         except GeocoderUnavailable:
             logger.warning(f"ジオコーディング 利用不可応答: {spot}")
+        except GeocoderQuotaExceeded:
+            logger.warning(f"ジオコーディング API制限超過: {spot}")
         except Exception as e:
             logger.error(f"ジオコーディング 通信エラー ({spot}): {e}")
             if find_location:

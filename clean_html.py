@@ -38,18 +38,22 @@ IMAGE_BASIC_SIZE = {
 }
 def resize_logic(w, h):
     """画像サイズを適切なサイズにリサイズ（大きい方に合わせる）"""
+    if w <= 0 or h <= 0: return w, h
+
     mode = 'landscape' if w >= h else 'portrait'
     # targetsは大きい順にソートされている
     targets = IMAGE_BASIC_SIZE[mode]
     
-    # 小さいサイズから順にチェック
-    for target in reversed(targets):
-        # 元の幅がターゲットの幅以下なら、そのターゲットサイズを採用
-        if w <= target['w']:
-            return target['w'], target['h']
-    # どのサイズよりも大きい場合は、最大のサイズを返す
-    # will been defulted to the largest size
-    return targets[0]['w'], targets[0]['h']
+    # 最大サイズ（リストの先頭）を取得
+    max_w, max_h = targets[0]['w'], targets[0]['h']
+
+    # 最大サイズを超えている場合のみ、アスペクト比を維持して縮小
+    if w > max_w or h > max_h:
+        ratio = min(max_w / w, max_h / h)
+        return int(w * ratio), int(h * ratio)
+    
+    # それ以外は元のサイズを維持
+    return w, h
 
 def run(result_queue):
     all_files = list(Path(input_dir).rglob('*'))

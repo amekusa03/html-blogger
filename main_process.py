@@ -38,8 +38,11 @@ def main_process(command_queue, result_queue):
                 result_queue.put(('process_list', process_def))
             if command == 'import_files':
                 logger.info("ファイル取り込み")
+                result_queue.put('import_files' ) # GUIのみ
+            if command == 'check_files':
+                logger.info("ファイルチェック")
                 import_file.run(result_queue)
-                result_queue.put('import_files' )
+                result_queue.put('check_files' )
             if command == 'serialize_files':
                 logger.info("ファイルシリアライズ")
                 serial_file.run(result_queue)
@@ -83,6 +86,9 @@ def main_process(command_queue, result_queue):
                 logger.info("記事アップロード")
                 upload_art.run(result_queue)
                 result_queue.put('upload_art')
+            if command == 'closing':
+                logger.info("処理終了")
+                result_queue.put('closing') # GUIのみ
             if command is None:  # Exit signal
                 break
             # Process the data (example: square the number)
@@ -101,6 +107,11 @@ def start_thread():
     return q, thread            
 process_def = {
     'import_files': {
+        'name': "ファイル取り込み", 
+        'status': '⌛', 
+        'nextprocess': 'check_files'
+    },
+    'check_files': {
         'name': "ファイルチェック", 
         'status': '⌛', 
         'nextprocess': 'serialize_files'
@@ -158,7 +169,12 @@ process_def = {
     'upload_art': {
         'name': "記事アップロード", 
         'status': '⌛', 
+        'nextprocess': 'closing'
+    },
+    'closing': {
+        'name': "終了", 
+        'status': '⌛', 
         'nextprocess': 'import_files'
-    }
+    }    
 }
     

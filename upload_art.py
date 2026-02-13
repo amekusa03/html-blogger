@@ -114,86 +114,87 @@ def ready_upload():
         
 def upload_art(art_html):
     """ Blogger にアップロード"""
-    # htnlファイル（ready_upload フォルダ内）
-    if not art_html:
-        logger.info(f'アップロードする記事が見つかりません。')
-        return True
-    
-    #pbar = ProgressBar(count, prefix='Upload art')
-
-    global last_execution_time    
-    elapsed_time = time.time() - last_execution_time
-    if elapsed_time < delay_seconds:
-        wait_time = delay_seconds - elapsed_time
-        logger.info(f"待機中... ({wait_time:.1f}秒)")
-        time.sleep(wait_time)
-
-
-    # タイトルは<title>タグから抽出
-    soup = BeautifulSoup(art_html, 'html.parser')
-    title_tag = soup.find('title')
-    title = title_tag.get_text(strip=True) if title_tag and title_tag.get_text(strip=True) else ''
-    
-    # 公開日時を<time>タグから抽出
-    # published_date の取得
-    # time_tagがない場合は、現在時刻をタイムゾーン付きで取得
-    # 公開日時を<time>タグから抽出
-    time_tag = soup.find('time')
-    date_part = (time_tag.get('datetime')[:10] if (time_tag and time_tag.get('datetime')) else datetime.now(JST).strftime('%Y-%m-%d'))
-    published = f"{date_part}T00:00:00+09:00"
-
-    # ラベルを<category>タグから抽出
-    labels_tags = soup.find_all('search')
-    labels = ", ".join([tag.get_text(strip=True) for tag in labels_tags])
-
-    # 位置情報を<blogger:location>から抽出
-    location_name_tag = soup.find('location_name')
-    latitude_tag = soup.find('latitude')
-    longitude_tag = soup.find('longitude')
+    try:
+        # htnlファイル（ready_upload フォルダ内）
+        if not art_html:
+            logger.info(f'アップロードする記事が見つかりません。')
+            return True
         
-    if location_name_tag is not None and latitude_tag is not None and longitude_tag is not None:
-        try:
-            location_data = {
-                'name': location_name_tag.text.strip() if location_name_tag.text else "",
-                'lat': float(latitude_tag.text),
-                'lng': float(longitude_tag.text)
-                        }
-        except ValueError:
-            logger.warning(f"位置情報の座標変換に失敗しました。位置情報はスキップされます。 (タイトル: {title})")
-            location_data = None
-    else:
-        location_data = None
-    # 本文は<body>タグの中身
-    body_tag = soup.find('body')
-    content = ''.join(str(child) for child in body_tag.children).strip() if body_tag else str(soup)
+        #pbar = ProgressBar(count, prefix='Upload art')
+
+        global last_execution_time    
+        elapsed_time = time.time() - last_execution_time
+        if elapsed_time < delay_seconds:
+            wait_time = delay_seconds - elapsed_time
+            logger.info(f"待機中... ({wait_time:.1f}秒)")
+            time.sleep(wait_time)
+
+
+        # タイトルは<title>タグから抽出
+        soup = BeautifulSoup(art_html, 'html.parser')
+        title_tag = soup.find('title')
+        title = title_tag.get_text(strip=True) if title_tag and title_tag.get_text(strip=True) else ''
+        
+        # 公開日時を<time>タグから抽出
+        # published_date の取得
+        # time_tagがない場合は、現在時刻をタイムゾーン付きで取得
+        # 公開日時を<time>タグから抽出
+        time_tag = soup.find('time')
+        date_part = (time_tag.get('datetime')[:10] if (time_tag and time_tag.get('datetime')) else datetime.now(JST).strftime('%Y-%m-%d'))
+        published = f"{date_part}T00:00:00+09:00"
+
+        # ラベルを<category>タグから抽出
+        labels_tags = soup.find_all('search')
+        labels = ", ".join([tag.get_text(strip=True) for tag in labels_tags])
+
+        # 位置情報を<blogger:location>から抽出
+        location_name_tag = soup.find('location_name')
+        latitude_tag = soup.find('latitude')
+        longitude_tag = soup.find('longitude')
             
-    body = {
-        'kind': 'blogger#post',
-        'title': title,
-        'content': content,
-        'labels': labels,
-        'blog': {'id': blog_id},
-        'published': published
-    }
+        if location_name_tag is not None and latitude_tag is not None and longitude_tag is not None:
+            try:
+                location_data = {
+                    'name': location_name_tag.text.strip() if location_name_tag.text else "",
+                    'lat': float(latitude_tag.text),
+                    'lng': float(longitude_tag.text)
+                            }
+            except ValueError:
+                logger.warning(f"位置情報の座標変換に失敗しました。位置情報はスキップされます。 (タイトル: {title})")
+                location_data = None
+        else:
+            location_data = None
+        # 本文は<body>タグの中身
+        body_tag = soup.find('body')
+        content = ''.join(str(child) for child in body_tag.children).strip() if body_tag else str(soup)
+                
+        body = {
+            'kind': 'blogger#post',
+            'title': title,
+            'content': content,
+            'labels': labels,
+            'blog': {'id': blog_id},
+            'published': published
+        }
 
-    # 公開日時があれば追加
-    if published:
-        body['published'] = published
+        # 公開日時があれば追加
+        if published:
+            body['published'] = published
 
-    # 位置情報があれば追加
-    if location_data:
-        body['location'] = location_data
+        # 位置情報があれば追加
+        if location_data:
+            body['location'] = location_data
 
-    logger.info("=" * 50)
-    logger.info(f"アップロード開始: {title}")
-    logger.info(f"公開日: {published}")
-    logger.info(f"BLOG_ID: {blog_id}")
-    logger.info(f"ラベル: {labels}")
-                        
-    global service
-    # API呼び出しのリトライ処理
-    for attempt in range(max_retries):
-        try:
+        logger.info("=" * 50)
+        logger.info(f"アップロード開始: {title}")
+        logger.info(f"公開日: {published}")
+        logger.info(f"BLOG_ID: {blog_id}")
+        logger.info(f"ラベル: {labels}")
+                            
+        global service
+        # API呼び出しのリトライ処理
+        success = False
+        for attempt in range(max_retries):
             try:
                 if test_mode == 'false': 
                     # 投稿
@@ -201,6 +202,9 @@ def upload_art(art_html):
                     logger.info(f"投稿ID: {response.get('id')}")
                 else:
                     logger.info("【テストモード】API呼び出しをスキップします")
+                
+                logger.info(f" 投稿完了 : {title if title else '(タイトルなし)'}")
+                success = True
                 break
             except Exception as e:
                 if attempt < max_retries - 1:
@@ -208,14 +212,13 @@ def upload_art(art_html):
                     logger.warning(f"APIエラー (試行 {attempt+1}/{max_retries}): {e} - {wait_time}秒後に再試行します")
                     time.sleep(wait_time)
                 else:
-                    raise
-            logger.info(f" 投稿完了 : {title if title else '(タイトルなし)'}")
-        except Exception as e:
-            logger.error(f"アップロード失敗 (タイトル: {title}): {e}", exc_info=True)
-            # エラーがあっても処理を継続
-        finally:
-            last_execution_time = time.time() 
-    return True
+                    logger.error(f"アップロード失敗 (タイトル: {title}): {e}", exc_info=True)
+            finally:
+                last_execution_time = time.time() 
+        return success
+    except Exception as e:
+        logger.error(f"記事処理中に予期せぬエラーが発生しました: {e}", exc_info=True)
+        return False
 
 
 
@@ -263,9 +266,12 @@ def run(result_queue):
                     logger.info(f"元ファイルを削除しました: {src_path.name}")
                 except Exception as e:
                     logger.error(f"削除失敗: {src_path.name} - {e}")
-            file.status = '✔'
+                file.status = '✔'
+                processed_count += 1
+            else:
+                file.status = '⚠️'
+                logger.error(f"履歴保存失敗のため、元ファイルを残します: {src_path.name}")
             result_queue.put(file)
-            processed_count += 1
         else:
             file.status = '✘'
             result_queue.put(file)

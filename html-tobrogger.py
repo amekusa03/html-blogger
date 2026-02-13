@@ -137,7 +137,13 @@ class App(tk.Tk):
 
                 if msg_type == 'import_files':
                     self.refresh_process_steps('import_files', '✔')
-                    logger.info("ファイルリストを更新しました。")
+                    open_path = config['gui']['reports_dir']
+                    self.open_folder_action(open_path)
+                    messagebox.showinfo("ファイル取り込み", f"開いたフォルダ\n{open_path}にHTMLの記事、画像を入れて下さい。")
+                    logger.info("ファイル取り込みが完了しました。")
+                if msg_type == 'check_files':
+                    self.refresh_process_steps('check_files', '✔')
+                    logger.info("ファイルチェックが完了しました。")
                 if msg_type == 'serialize_files':
                     self.refresh_process_steps('serialize_files', '✔')
                     logger.info("シリアライズ処理が完了しました。")        
@@ -170,6 +176,17 @@ class App(tk.Tk):
                 if msg_type == 'link_html':
                     self.refresh_process_steps('link_html', '✔')                  
                 
+                if msg_type == 'upload_art':
+                    self.refresh_process_steps('upload_art', '✔') 
+                    open_web = config['gui']['blogger_url']
+                    webbrowser.open(open_web)
+                    messagebox.showinfo("記事アップロード", f"Bloggerの管理画面が開きます。\n投稿済みの記事を確認してください。")
+                if msg_type == 'closing':
+                    self.refresh_process_steps('closing', '✔') 
+                    messagebox.showinfo("処理完了", f"すべての処理が完了しました。\nお疲れ様でした！")
+                    logger.info("すべての処理が完了しました。")
+                    self.reset_gui()
+                      
                 # プロセス完了通知であればボタンを再度有効化
                 if self.process_def and msg_type in self.process_def:
                     self.btn_check.configure(state='normal')
@@ -199,6 +216,24 @@ class App(tk.Tk):
             pass
         finally:
             self.after(100, self.poll_queue)
+
+    def reset_gui(self):
+        """GUIを初期状態にリセットする"""
+        self.process = None
+        self.html_status = {}
+        self.image_status = {}
+        self.html_listbox.delete(0, tk.END)
+        self.image_listbox.delete(0, tk.END)
+        self.progress_var.set(0)
+        self.status_label.config(text="待機中...")
+        logger.info("-" * 30)
+        
+        # ステータスをリセット
+        if self.process_def:
+            for key in self.process_def:
+                self.process_def[key]['status'] = '⌛'
+        
+        self.command_queue.put('process_list')
 
     def create_menu(self):
         menubar = tk.Menu(self)

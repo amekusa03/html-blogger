@@ -109,9 +109,18 @@ def _prepare_watermark_params(image, text):
     """ウォーターマークのフォントと位置を計算する共通関数"""
     w, h = image.size
     font_size = max(16, min(w, h) // 20)
-    try:
-        font = ImageFont.truetype("arial.ttf", font_size)
-    except Exception:
+    
+    # OSごとのフォント候補
+    font_candidates = ["arial.ttf", "Arial.ttf", "DejaVuSans.ttf", "FreeSans.ttf", "/System/Library/Fonts/Helvetica.ttc"]
+    font = None
+    for font_name in font_candidates:
+        try:
+            font = ImageFont.truetype(font_name, font_size)
+            break
+        except IOError:
+            continue
+            
+    if font is None:
         font = ImageFont.load_default()
 
     temp_draw = ImageDraw.Draw(image)

@@ -36,41 +36,52 @@ def run(result_queue):
             result_queue.put(src_file)
     #削除
     if test_mode == 'false':
-        shutil.rmtree(Path(input_dir), ignore_errors=True)
-        Path(input_dir).mkdir(parents=True, exist_ok=True)  
+        # 安全のため自動削除は無効化（必要に応じて有効化してください）
+        # shutil.rmtree(Path(input_dir), ignore_errors=True)
+        # Path(input_dir).mkdir(parents=True, exist_ok=True)
+        logger.info(f"処理完了: 元ファイルは {input_dir} に残っています。")
     
     return True
 def import_files(in_file):            
     """ファイルをINPUT_DIRからOUTPUT_DIRにコピー"""
     # フォルダがなければ作成 (exist_ok=Trueで既存フォルダエラーを回避)
+    # 転送先パスを事前に計算し、SmartFileオブジェクトを初期化
+    try:
+        rel_path = Path(in_file).parent.relative_to(input_dir)
+    except ValueError:
+        rel_path = Path(".")
+    
+    dest_path = Path(output_dir) / rel_path / in_file.name
+    files = SmartFile(dest_path)
+
     try:
         # ファイルをバックアップ
         if backup == 'true':
             os.makedirs(Path(backup_dir), exist_ok=True)
-            backupfile = Path(backup_dir) / Path(in_file).parent.relative_to(input_dir) / in_file.name
+            backupfile = Path(backup_dir) / rel_path / in_file.name
             os.makedirs(Path(backupfile).parent, exist_ok=True)
             shutil.copy(in_file, backupfile)
+            
         # 作業エリアにファイルをコピー
-        to = SmartFile(Path(output_dir) / Path(in_file).parent.relative_to(input_dir) / in_file.name)
-        os.makedirs(Path(to).parent, exist_ok=True)
-        shutil.copy(in_file, to)
-        files = SmartFile(to)
-        files.disp_path = Path(files).parent.relative_to(output_dir) / files.name
+        os.makedirs(files.parent, exist_ok=True)
+        shutil.copy(in_file, files)
+        files.disp_path = rel_path / files.name
         
         # まず全フォルダをチェック
         if files.suffix.lower() in image_extensions:
             files.extensions = 'image'
+            files.status = '✓'
         elif files.suffix.lower() in html_extensions:
             files.extensions = 'html'
+            files.status = '✓'
         else:
             files.status = '✘'
             files.extensions = 'other'
             logger.warning(f"警告: 対応していない拡張子のため取り込みスキップ: {files}")        
 
-        files.status = '✓'    
     except Exception as e:
         files.status = '✘'
-        logger.error(f"エラー: 取り込み失敗: {Path(output_dir) / files.name} - {e}")
+        logger.error(f"エラー: 取り込み失敗: {files} - {e}")
         return files
     return files
 
