@@ -261,7 +261,7 @@ class App(tk.Tk):
                         "処理完了", f"すべての処理が完了しました。\nお疲れ様でした！"
                     )
                     logger.info("すべての処理が完了しました。")
-                    self.reset_gui()
+                    self.execute_common()
                 if (
                     msg_type == "import_files"
                     or msg_type == "check_files"

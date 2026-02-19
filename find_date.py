@@ -243,8 +243,8 @@ def run(result_queue):
         for filename in files:
             if filename.lower().endswith(tuple(html_extensions)):
                 src_path = Path(root) / filename
-                if result_path:
-                    files = SmartFile(result_path)
+                if src_path:
+                    files = SmartFile(src_path)
                     files.status = "⏳"
                     files.extensions = "html"
                     files.disp_path = files.name

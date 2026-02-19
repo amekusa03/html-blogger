@@ -63,6 +63,7 @@ def main_process(command_queue, result_queue):
             if command == "check_files":
                 logger.info(process_def[command]["name"])
                 import_file.run(result_queue)
+                upload_image.rm()  # アップロード用一時フォルダをクリーンアップ
                 process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])
             if command == "serialize_files":

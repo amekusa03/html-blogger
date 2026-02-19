@@ -53,7 +53,9 @@ def run(result_queue):
     """HTML内の画像リンクを履歴フォルダに移動する"""
     if not history(result_queue):
         return False
-    return unlink_image_list
+    if len(unlink_image_list) > 0:
+        return unlink_image_list
+    return True
 
 
 def import_media_manager():
@@ -229,7 +231,7 @@ def history(result_queue):
     if unlink_image_list:
         logger.warning("以下の画像リンクが見つかりませんでした:")
         for sf in unlink_image_list:
-            logger.warning(f" - {sf.filename}")
+            logger.warning(f" - {sf.name}")
     # メディアマネージャー内の画像リンクを収集
     count = 0
     for sf in link_image_list:

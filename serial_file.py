@@ -27,7 +27,7 @@ logger = getLogger(__name__)
 # --- 設定 ---
 
 # 入力フォルダ
-source_dir = config["serializer"]["input_dir"].lstrip("./")
+source_dir = str(Path(config["serializer"]["input_dir"].lstrip("./")).resolve())
 # シリアライズフォルダ
 serialization_dir = config["serializer"]["serialization_dir"].lstrip("./")
 # 出力フォルダ
@@ -49,14 +49,14 @@ def run(result_queue):
 
     # 2. ファイル処理
     all_files = sorted(Path(source_dir).rglob("*"))
-    
+
     # シリアル番号プレフィックスを取得（全ファイルで共通）
     serial_prefix = get_serial()
 
     for path in all_files:
         if not path.is_file():
             continue
-            
+
         src_file = SmartFile(path)
         try:
             processed_file = process_file(src_file, serial_prefix)
@@ -79,7 +79,7 @@ def get_serialized_name(path, serial_prefix):
     except ValueError:
         # source_dir外のパスの場合（通常は発生しないはずだが安全策）
         relative = Path(path.name)
-        
+
     flat_name = "".join(relative.parts)
     return f"{serial_prefix}{flat_name}"
 
@@ -88,7 +88,7 @@ def process_file(src_file, serial_prefix):
     """個別のファイルを処理する"""
     new_name = get_serialized_name(src_file, serial_prefix)
     dest_path = Path(serialization_dir) / new_name
-    
+
     # SmartFile作成
     dest_smart_file = SmartFile(dest_path)
     # GUI連携用: 元の相対パスを保存
@@ -101,7 +101,7 @@ def process_file(src_file, serial_prefix):
         return process_html(src_file, dest_smart_file, serial_prefix)
     elif src_file.suffix.lower() in image_extensions:
         return process_image(src_file, dest_smart_file)
-    
+
     return None
 
 
@@ -123,7 +123,7 @@ def process_html(src_file, dest_smart_file, serial_prefix):
         # HTMLファイルからの相対パスを絶対パスに変換して計算
         html_dir = src_file.parent
         link_path = (html_dir / original_src).resolve()
-        
+
         try:
             # リンク先の新しい名前を計算
             new_link_name = get_serialized_name(link_path, serial_prefix)
@@ -135,20 +135,20 @@ def process_html(src_file, dest_smart_file, serial_prefix):
 
     # imgタグのsrcを置換
     new_content = re.sub(r'src="([^"]+)"', replace_link, content)
-    
+
     dest_smart_file.write_text(new_content, encoding="utf-8")
     dest_smart_file.extensions = "html"
     dest_smart_file.disp_path = dest_smart_file.name
     dest_smart_file.status = "✓"
     logger.info(f"[HTML] {src_file.name} -> {dest_smart_file.name} (リンク更新済)")
-    
+
     return dest_smart_file
 
 
 def process_image(src_file, dest_smart_file):
     """画像ファイルを移動"""
     shutil.move(src_file, dest_smart_file)
-    
+
     dest_smart_file.extensions = "image"
     dest_smart_file.disp_path = dest_smart_file.name
     dest_smart_file.status = "✓"
@@ -160,7 +160,7 @@ def finalize_output(src_dir, dest_dir):
     """出力ディレクトリを更新"""
     if os.path.exists(dest_dir):
         shutil.rmtree(dest_dir)
-    
+
     try:
         shutil.copytree(src_dir, dest_dir)
         logger.info(f"コピー: {src_dir} -> {dest_dir}")

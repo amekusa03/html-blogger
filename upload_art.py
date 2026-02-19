@@ -71,6 +71,7 @@ def move_upload_file(result_queue):
             smart_file = SmartFile(dest_path)
             smart_file.status = "⌛"
             smart_file.extensions = "html"
+            smart_file.disp_path = dest_path.name
             result_queue.put(smart_file)
     logger.info(f"{count} 枚のhtmlを {upload_dir} にアップロードしました。")
     return True

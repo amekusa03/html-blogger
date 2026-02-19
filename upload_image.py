@@ -46,6 +46,7 @@ def move_upload_file(result_queue):
             smart_file = SmartFile(dest_path)
             smart_file.status = "⌛"
             smart_file.extensions = "image"
+            smart_file.disp_path = dest_path.name
             result_queue.put(smart_file)
     logger.info(f"{count} 枚の画像を {upload_dir} にアップロードしました。")
     return True
@@ -102,36 +103,9 @@ def run(result_queue):
     return True
 
 
-
-
-
-# def history(result_queue):
-#     """手動アップロード用に画像を準備する"""
-#     # Path(history_dir).mkdir(parents=True, exist_ok=True)
-#     count = 0
-#     # 2. INPUT_DIR内を探索
-#     # rglob('*') を使えばサブフォルダ内も探せます。直下だけなら glob('*')
-#     if upload_dir == history_dir:
-#         logger.error(
-#             "エラー: UPLOAD_DIR と HISTORY_DIR が同じフォルダに設定されています。異なるフォルダを指定してください。"
-#         )
-#         return False
-#     # HTML内の画像リンクを収集
-#     for file_path in Path(upload_dir).rglob("*"):
-#         # ファイルであり、かつ拡張子が指定のものに含まれるかチェック
-#         if file_path.is_file() and file_path.suffix.lower() in image_extensions:
-#             dest_path = Path(history_dir) / file_path.name
-#             # 3. コピー実行（メタデータも保持するcopy2を推奨）
-#             shutil.copy2(file_path, dest_path)
-#             smart_file = SmartFile(dest_path)
-#             smart_file.status = "✔"
-#             smart_file.extensions = "image"
-#             smart_file.disp_path = smart_file.name
-#             result_queue.put(smart_file)
-#             count += 1
-
-#     logger.info(f"{count} 枚の画像を {history_dir} にアップロードしました。")
-#     return True
+def rm():
+    """アップロード用一時フォルダを削除する"""
+    shutil.rmtree(upload_dir, ignore_errors=True)
 
 
 import queue
