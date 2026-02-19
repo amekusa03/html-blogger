@@ -28,7 +28,7 @@ pip install -r requirements.txt
 
 ### ステップ 5: アプリケーションを起動
 ```bash
-python html_tobrogger.py
+python html-tobrogger.py
 ```
 
 🖥️ **GUI ウィンドウが起動します。** 
@@ -104,13 +104,18 @@ reports/
 ## ⚙️ 必須設定
 
 ### 1. `config.json5` を編集
-```ini
-[OPEN_BLOGGER]
-BLOG_ID = 1234567890123456789  # あなたのブログID
-
-[CONVERT_ATOM]
-BLOG_TITLE = My Blog            # ブログ名
-BLOG_URL = https://myblog.blogspot.com  # ブログURL
+```json5
+```json5
+{
+    // 画像加工設定
+    mod_image: {
+        watermark_text: 'サンプル',     // 透かしテキスト
+    },
+    // 記事アップロード設定
+    upload_art: {
+        blog_id: 1234567890123456789,   // ブログID
+    }
+}
 ```
 
 ### 2. `keywords.xml` を編集

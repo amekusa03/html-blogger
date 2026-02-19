@@ -1,15 +1,40 @@
-# HTML to Blogger Ver0.95
+# HTML to Blogger Ver0.98
 
 ローカルにあるHTMLファイルと画像を、自動的に処理してBloggerに投稿するためのデスクトップアプリケーションです。
-HTMLのクリーニング、画像への透かし追加、キーワードや位置情報の付与、そしてBloggerへのアップロードを一貫したパイプラインとして実行します。
+HTMLのクリーニング、画像への透かし追加、キーワードや位置情報の付与、そしてBloggerへのアップロードを実行します。
 
 ## 主な機能
 
-*   **HTMLクリーニング**: 不要なタグの削除、フォーマットの正規化。
-*   **画像処理**: 画像のリサイズ、EXIF削除、透かし（ウォーターマーク）の追加。
+*   **HTMLクリーニング**: 投稿に不要なタグの削除、フォーマットの正規化。
+*   **画像処理**: 画像のEXIF削除、透かし（ウォーターマーク）の追加。
 *   **メタデータ付与**: 本文解析によるキーワード(`search`タグ)や位置情報(`georss`タグ)の自動追加。
-*   **Bloggerアップロード**: 画像と記事をBlogger APIを使用して下書きとして投稿。
+*   **Bloggerアップロード**: 画像リンクと記事をBlogger APIを使用して下書きとして投稿。
 *   **GUI操作**: 進行状況の可視化、エラー時のリカバリー機能などを備えた使いやすいGUI。
+
+## ファイル構成と役割
+
+本プロジェクトは、機能ごとにモジュール化されたPythonスクリプトで構成されています。
+
+### メイン・GUI
+*   **`html-tobrogger.py`**: アプリケーションのエントリーポイント。Tkinterを使用したGUIを提供し、ユーザー操作を受け付けます。
+*   **`main_process.py`**: バックグラウンドで動作するメイン処理コントローラー。各処理モジュールを順次呼び出し、処理を順次制御を行います。
+
+### 処理モジュール (実行順)
+1.  **`import_file.py`**: 原稿フォルダから作業フォルダへファイルを取り込みます。画像・HTMLの形式チェックとバックアップを行います。
+2.  **`serial_file.py`**: ファイル名を連番形式（シリアル番号）に変換し、フォルダ構造をフラット化します。
+3.  **`clean_html.py`**: HTMLのタグ除去、スタイル削除、フォーマット正規化を行い、Bloggerに適した形式にします。
+4.  **`find_keyword.py`**: 記事本文からキーワードを抽出し、`<search>`タグとして埋め込みます。
+5.  **`find_location.py`**: 記事内の地名を抽出し、ジオコーディングを行って位置情報タグを追加します。
+6.  **`find_date.py`**: 記事内の日付表現を解析し、`<time>`タグを追加します。
+7.  **`mod_image.py`**: 画像のリサイズ、透かし（ウォーターマーク）の追加、EXIF情報の削除を行います。
+8.  **`upload_image.py`**: 画像ファイルをアップロード用フォルダに準備します。
+9.  **`link_html.py`**: Bloggerのメディアマネージャーから取得した画像URLリストを元に、HTML内のローカル画像リンクをWeb上のURLに置換します。
+10. **`upload_art.py`**: 完成したHTML記事をBlogger APIを使用して下書きとしてアップロードします。
+
+### ユーティリティ・設定
+*   **`file_class.py`**: ファイル操作を補助する `SmartFile` クラス定義。
+*   **`parameter.py`**: 設定ファイル (`config.json5`) の読み込みとパラメータ管理。
+*   **`auth_google.py`**: Google APIのOAuth認証処理を担当。
 
 ## 動作環境
 
@@ -23,9 +48,11 @@ HTMLのクリーニング、画像への透かし追加、キーワードや位�
 
 ### 2. 依存ライブラリのインストール
 以下のコマンドを実行して、必要なPythonライブラリをインストールします。
+`requirements.txt` が含まれているため、一括インストールが可能です。
 
 ```bash
-pip install beautifulsoup4 google-api-python-client google-auth-oauthlib google-auth-httplib2 Pillow piexif geopy janome pykakasi
+pip install -r requirements.txt
+# または pip install beautifulsoup4 google-api-python-client google-auth-oauthlib google-auth-httplib2 Pillow geopy janome
 ```
 
 ※ Linux (Ubuntu等) をご使用の場合、Tkinterのインストールが必要な場合があります。
@@ -39,13 +66,13 @@ sudo apt-get install python3-tk
 1.  Google Cloud Console にアクセスし、プロジェクトを作成します。
 2.  「APIとサービス」>「ライブラリ」から **Blogger API v3** を検索し、有効にします。
 3.  「APIとサービス」>「認証情報」から **OAuth 2.0 クライアントID** を作成します（アプリケーションの種類は「デスクトップアプリ」）。
-4.  作成した認証情報のJSONファイルをダウンロードし、**`credentials.json`** という名前でこのツールのフォルダ（`html_tobrogger.py` と同じ場所）に保存します。
+4.  作成した認証情報のJSONファイルをダウンロードし、**`credentials.json`** という名前でこのツールのdataフォルダに保存します。
 
 ### 2. アプリケーションの起動
 以下のコマンドでGUIアプリを起動します。
 
 ```bash
-python3 html_tobrogger.py
+python3 html-tobrogger.py
 ```
 
 ### 3. ブログIDの設定

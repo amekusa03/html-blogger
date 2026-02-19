@@ -30,20 +30,21 @@ build/
 
 # Specific files to exclude
 Todo.md
-data/backup
+data/backup/
 data/history
-data/work
-data/report
-data/log
+data/work/
+data/report/
+data/logs/
+data/log/
+data/config.json5
 data/media_man
 data/serialization
 data/upload
 data/*.html
 ゴミ箱
 guidelines.md
-
+退避
 # Local State & Database
 
 # MacOS
 .DS_Store
-

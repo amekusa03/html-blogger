@@ -113,8 +113,17 @@ APIとサービス → 認証情報
 
 ```
 htmltobrogger/
-├── html_tobrogger.py
-├── credentials.json  ← ここに配置
+├─ html-tobrogger.py
+├─ data ┬ credentials.json  ← ここに配置
+│　　　　├backup
+│　　　　├histroy
+│　　　　├log
+│　　　　├logs
+│　　　　├media_man
+│　　　　├report
+│　　　　├serialization
+│　　　　├upload
+│　　　　└work
 ├── find_keywords.py
 ├── ...
 ```
@@ -223,6 +232,7 @@ Google Blogger APIには**2種類のリクエスト制限**があります：
 - **ユーザー単位**: 1日あたり1,000,000ユーザー呼び出し
 - **プロジェクト単位**: 1日あたり2,000,000ユーザー呼び出し
 - **リセット時刻**: 太平洋時間（PT）午前0時（日本時間 16:00-17:00頃）
+- **API使用時の投稿**: 1日あたり45件（2026/02/18実測）
 
 ### ⚡ 2. Rate Limit（バースト・レート）
 
@@ -235,8 +245,8 @@ Google Blogger APIには**2種類のリクエスト制限**があります：
 - 短時間に大量のリクエストを送ると、1日の上限に達していなくても「異常検知」としてアカウントが一時停止される可能性があります
 
 ✅ **本ツールの安全設計**:
-- デフォルト設定: **1.1秒間隔**（約0.91 QPS）
-- 1回の実行: **最大5件**
+- デフォルト設定: **11.1秒間隔**（約0.091 QPS）
+- 1回の実行: **最大40件**
 - Blogger API標準のRate Limit（1 QPS）に準拠
 
 ### Quotas確認手順

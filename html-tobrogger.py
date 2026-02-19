@@ -1,27 +1,33 @@
-import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox, simpledialog
+# -*- coding: utf-8 -*-
 import logging
-import threading
-import time
-import sys
 import os
-import re
+import queue
 import subprocess
-import platform
+import sys
+import threading
+import tkinter as tk
 import webbrowser
 from pathlib import Path
-import queue
+from tkinter import messagebox, scrolledtext, ttk
 
 import main_process
-from parameter import config, save_config, open_config_file, open_keywords_app, open_georss_file
 from file_class import SmartFile
-
+from parameter import (
+    config,
+    open_config_file,
+    open_file_with_default_app,
+    open_georss_file,
+    open_keywords_app,
+    save_config,
+)
 
 # ロガーの設定
 logger = logging.getLogger(__name__)
 
+
 class TkLogHandler(logging.Handler):
     """ログをTkinterのScrolledTextに出力するハンドラ"""
+
     def __init__(self, text_widget):
         super().__init__()
         self.text_widget = text_widget
@@ -35,30 +41,31 @@ class TkLogHandler(logging.Handler):
             tag = "WARN"
         elif record.levelno == logging.INFO:
             tag = "INFO"
-        
+
         def append():
             try:
-                self.text_widget.configure(state='normal')
-                self.text_widget.insert(tk.END, msg + '\n', tag)
+                self.text_widget.configure(state="normal")
+                self.text_widget.insert(tk.END, msg + "\n", tag)
                 self.text_widget.see(tk.END)
-                self.text_widget.configure(state='disabled')
+                self.text_widget.configure(state="disabled")
             except Exception:
                 pass
-        
+
         # Tkinterのメインスレッドで実行するためにafterを使用
         self.text_widget.after(0, append)
+
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Bloggers of that time...")
         self.geometry("1100x800")
-        
+
         # テーマ設定
         style = ttk.Style()
-        if 'clam' in style.theme_names():
-            style.theme_use('clam')
-        
+        if "clam" in style.theme_names():
+            style.theme_use("clam")
+
         # ファイルステータス管理用
         self.html_status = {}
         self.image_status = {}
@@ -66,31 +73,30 @@ class App(tk.Tk):
         # GUI構築
         self.create_menu()
         self.create_widgets()
-        
+
         # ログ設定
         self.setup_logging()
-        
+
         # 初回リスト更新
-        #self.refresh_file_lists()
-        
+
         # キューの初期化
         self.command_queue = queue.Queue()
         self.result_queue = queue.Queue()
-        
+
         # 処理スレッドの開始
         self.thread = threading.Thread(target=self.start_thread)
         self.thread.daemon = True
-        self.thread.start()        
+        self.thread.start()
         self.after(100, self.poll_queue)
-        
+
         # 初期設定
-        self.process_def = {}
-        self.process = None
-        self.initial_process(self.command_queue, self.result_queue)
+        self.after(
+            200, lambda: self.initial_process(self.command_queue, self.result_queue)
+        )
 
     def _update_listbox(self, listbox, item_status, item_collection, smart_file):
         """リストボックスと対応する辞書を更新するヘルパー関数"""
-        old_name = getattr(smart_file, 'old_name', None)
+        old_name = getattr(smart_file, "old_name", None)
         if old_name:
             item_collection.pop(old_name, None)
         item_collection[smart_file.disp_path] = item_status
@@ -118,143 +124,216 @@ class App(tk.Tk):
             while True:
                 msg_type = None
                 fname = None
+                # ファイルステータス更新
                 result = self.result_queue.get_nowait()
                 if isinstance(result, SmartFile):
                     fname = result
                     status = result.status
-                    if fname.extensions == 'html':
-                        self._update_listbox(self.html_listbox, status, self.html_status, fname)
-                    elif fname.extensions == 'image':
-                        self._update_listbox(self.image_listbox, status, self.image_status, fname)
+                    if fname.extensions == "html":
+                        # HTMLファイルのステータス更新
+                        self._update_listbox(
+                            self.html_listbox, status, self.html_status, fname
+                        )
+                        if result.iserror():
+                            if self.error_file_list is None:
+                                self.error_file_list = set()
+                            self.error_file_list.add(fname)
+                            logger.warning(f"エラーファイル: {fname}")
+                    elif fname.extensions == "image":
+                        # 画像ファイルのステータス更新
+                        self._update_listbox(
+                            self.image_listbox, status, self.image_status, fname
+                        )
+                        if result.iserror():
+                            if self.error_file_list is None:
+                                self.error_file_list = set()
+                            self.error_file_list.add(fname)
+                            logger.warning(f"エラーファイル: {fname}")
                     else:
-                        logger.warning(f"不明なファイルタイプ: {fname}") 
+                        # 不明なファイルタイプのステータス更新
+                        if self.error_file_list is None:
+                            self.error_file_list = set()
+                        # 不明なファイルタイプのエラーファイルリストに追加
+                        if fname not in self.error_file_list:
+                            self.error_file_list.add(fname)
+                        logger.warning(f"不明なファイルタイプ: {fname}")
                     logger.info(f"ファイルステータス更新: {fname} -> {status}")
                     continue
-                elif isinstance(result, tuple):
-                    msg_type = result[0].lower()
-                elif isinstance(result, str):
-                    msg_type = result.lower()
+                elif isinstance(result, type(main_process.process_def)):
+                    # プロセスステータス更新
+                    msg_type = result["key"]
+                    status_type = result.get("status", "⌛")
+                if msg_type == "initial_process" and status_type == "✔":
+                    logger.info("初期処理が完了しました。")
+                    self.execute_common()
+                if msg_type == "check_resume":
+                    if status_type == "♻":
+                        logger.info("再開処理があります。")
+                if msg_type == "import_files" and status_type == "✔":
+                    open_path = config["gui"]["reports_dir"]
+                    self.open_folder_action(open_path)
+                    messagebox.showinfo(
+                        "ファイル取り込み",
+                        f"開いたフォルダ\n{open_path}にHTMLの記事、画像を入れて下さい。",
+                    )
+                if (
+                    msg_type == "check_files"
+                    or msg_type == "serialize_files"
+                    or msg_type == "clean_html"
+                    or msg_type == "find_keyword"
+                    or msg_type == "find_location"
+                    or msg_type == "find_date"
+                    or msg_type == "mod_image"
+                ):
+                    if status_type == "✔":
+                        # エラーファイルがあればリスト表示
+                        self.error_file_message()
+                if msg_type == "upload_image":
+                    if status_type == "✔" or status_type == "🔁":
+                        if status_type == "🔁":
+                            logger.info("画像の再開処理があります。")
+                            if messagebox.askyesno(
+                                "再アップロード",
+                                f"アップロードしていない画像があります。\n再度アップロードしますか？",
+                            ):
+                                self.process = "upload_image"
+                            else:
+                                continue
+                        open_path = config["gui"]["upload_dir"]
+                        self.open_folder_action(open_path)
+                        open_web = config["gui"]["blogger_url"]
+                        webbrowser.open(open_web)
+                        messagebox.showinfo(
+                            "画像アップロード",
+                            f"開いたフォルダ\n{open_path}をブロガーに下書き投稿してください。\n(タイトル不要、本文は空でOKです）",
+                        )
 
-                if msg_type == 'import_files':
-                    self.refresh_process_steps('import_files', '✔')
-                    open_path = config['gui']['reports_dir']
-                    self.open_folder_action(open_path)
-                    messagebox.showinfo("ファイル取り込み", f"開いたフォルダ\n{open_path}にHTMLの記事、画像を入れて下さい。")
-                    logger.info("ファイル取り込みが完了しました。")
-                if msg_type == 'check_files':
-                    self.refresh_process_steps('check_files', '✔')
-                    logger.info("ファイルチェックが完了しました。")
-                if msg_type == 'serialize_files':
-                    self.refresh_process_steps('serialize_files', '✔')
-                    logger.info("シリアライズ処理が完了しました。")        
-                if msg_type == 'clean_html':
-                    self.refresh_process_steps('clean_html', '✔')
-                if msg_type == 'find_keyword':
-                    self.refresh_process_steps('find_keyword', '✔')                    
-                if msg_type == 'find_location':
-                    self.refresh_process_steps('find_location', '✔')
-                if msg_type == 'find_date':
-                    self.refresh_process_steps('find_date', '✔')
-                if msg_type == 'mod_image':
-                    self.refresh_process_steps('mod_image', '✔') 
-                if msg_type == 'upload_image':
-                    self.refresh_process_steps('upload_image', '✔') 
-                    open_path = config['gui']['upload_dir']
-                    self.open_folder_action(open_path)
-                    open_web = config['gui']['blogger_url']
+                if msg_type == "import_media_manager" and status_type == "✔":
+                    open_web = config["gui"]["media_manager_url"]
                     webbrowser.open(open_web)
-                    messagebox.showinfo("画像アップロード", f"開いたフォルダ\n{open_path}をブロガーに下書き投稿してください。\n(タイトル不要、本文は空でOKです）")
-                if msg_type == 'history_image':
-                    self.refresh_process_steps('history_image', '✔')
-                if msg_type == 'import_media_manager':
-                    open_web = config['gui']['media_manager_url'] + str(config['upload_art']['blog_id'])
-                    webbrowser.open(open_web)
-                    open_path = config['link_html']['media_manager_dir']
+                    open_path = config["link_html"]["media_manager_dir"]
                     self.open_folder_action(open_path)
-                    messagebox.showinfo("メディアマネージャー", f"開いたフォルダ\n{open_path}をブロガーのメディアマネージャーにアップロードしてください。")
-                    self.refresh_process_steps('import_media_manager', '✔') 
-                if msg_type == 'link_html':
-                    self.refresh_process_steps('link_html', '✔')                  
-                
-                if msg_type == 'upload_art':
-                    self.refresh_process_steps('upload_art', '✔') 
-                    open_web = config['gui']['blogger_url']
-                    webbrowser.open(open_web)
-                    messagebox.showinfo("記事アップロード", f"Bloggerの管理画面が開きます。\n投稿済みの記事を確認してください。")
-                if msg_type == 'closing':
-                    self.refresh_process_steps('closing', '✔') 
-                    messagebox.showinfo("処理完了", f"すべての処理が完了しました。\nお疲れ様でした！")
+                    messagebox.showinfo(
+                        "メディアマネージャー",
+                        f"開いたフォルダ\n{open_path}をブロガーのメディアマネージャーにアップロードしてください。",
+                    )
+                if msg_type == "link_html":
+                    if status_type == "⚠":
+                        # エラーファイルがあればリスト表示
+                        if self.error_file_message():
+                            if messagebox.askyesno(
+                                "リンク切れ画像",
+                                f"リンク切れの画像があります。\n再度画像アップロードしますか？",
+                            ):
+                                self.execute_common(retry=True)
+                        else:
+                            messagebox.showwarning(
+                                "リンク切れ画像",
+                                f"不定のリンク切れの画像があります。\n処理を続行します。",
+                            )
+                if msg_type == "upload_art":
+                    if status_type == "🔁":
+                        logger.info("記事の再開処理があります。")
+                        if messagebox.askyesno(
+                            "再アップロード",
+                            f"アップロードしていない記事があります。\n再度アップロードしますか？",
+                        ):
+                            self.process = "upload_art"
+                            self.execute_common(resume=True)
+                        else:
+                            continue
+                    if status_type == "✔":
+                        open_web = config["gui"]["blogger_url"]
+                        webbrowser.open(open_web)
+                        messagebox.showinfo(
+                            "記事アップロード",
+                            f"Bloggerの管理画面が開きます。\n投稿済みの記事を確認してください。",
+                        )
+                    if result["status"] == "⏸️":
+                        open_web = config["gui"]["blogger_url"]
+                        webbrowser.open(open_web)
+                        messagebox.showwarning(
+                            "投稿制限",
+                            f"1回の投稿上限に達しました。\n日本時間17時以降に再度投稿してください。\n（BloggerのAPI使用時に投稿できる記事は実測値で45件でした） ",
+                        )
+                if msg_type == "closing" and status_type == "✔":
+                    messagebox.showinfo(
+                        "処理完了", f"すべての処理が完了しました。\nお疲れ様でした！"
+                    )
                     logger.info("すべての処理が完了しました。")
                     self.reset_gui()
-                      
-                # プロセス完了通知であればボタンを再度有効化
-                if self.process_def and msg_type in self.process_def:
-                    self.btn_check.configure(state='normal')
+                if (
+                    msg_type == "import_files"
+                    or msg_type == "check_files"
+                    or msg_type == "serialize_files"
+                    or msg_type == "clean_html"
+                    or msg_type == "find_keyword"
+                    or msg_type == "find_location"
+                    or msg_type == "find_date"
+                    or msg_type == "mod_image"
+                    or msg_type == "upload_image"
+                    or msg_type == "import_media_manager"
+                    or msg_type == "link_html"
+                    or msg_type == "upload_art"
+                ):
 
-                if msg_type == 'process_list':
                     # ステップリストの更新と仮定
-                    self.step_labels = {}
-                    count = 0
-                    self.process_def = result[1]
-                    completed_count = 0
-                    for process in self.process_def.values():
-                        lbl = ttk.Label(self.steps_group, text=f"{process['status']} {process['name']}")
-                        lbl.grid(row=count, column=0, sticky="w", padx=5, pady=2)
-                        self.step_labels[process['name']] = lbl
-                        count += 1
-                        if process['status'] == '✔':
-                            completed_count += 1
-                    
+                    self.disp_process_list[msg_type] = result
+
+                    lbl = ttk.Label(
+                        self.steps_group,
+                        text=f"{result['status']} {result['name']}",
+                    )
+                    row = list(self.disp_process_list.keys()).index(msg_type)
+                    lbl.grid(row=row, column=0, sticky="w", padx=5, pady=2)
+                    self.step_labels[self.disp_process_list[msg_type]["name"]] = lbl
+
                     # プログレスバー初期化
-                    total_steps = len(self.process_def)
+                    total_steps = len(self.disp_process_list)
+                    completed_count = 0
+                    for key in self.disp_process_list:
+                        if self.disp_process_list[key]["status"] == "✔":
+                            completed_count += 1
+                            logger.info(
+                                "{}処理が完了しました。".format(
+                                    self.disp_process_list[key]["name"]
+                                )
+                            )
                     if total_steps > 0:
                         progress = (completed_count / total_steps) * 100
                         self.progress_var.set(progress)
                         self.status_label.config(text=f"{int(progress)}% 完了")
                     logger.info("プロセスステップを更新しました。")
+
+                # プロセス通知であればボタンを再度有効化
+                if self.disp_process_list and msg_type in self.disp_process_list:
+                    self.btn_check.configure(state="normal")
+
         except queue.Empty:
             pass
         finally:
             self.after(100, self.poll_queue)
 
-    def reset_gui(self):
-        """GUIを初期状態にリセットする"""
-        self.process = None
-        self.html_status = {}
-        self.image_status = {}
-        self.html_listbox.delete(0, tk.END)
-        self.image_listbox.delete(0, tk.END)
-        self.progress_var.set(0)
-        self.status_label.config(text="待機中...")
-        logger.info("-" * 30)
-        
-        # ステータスをリセット
-        if self.process_def:
-            for key in self.process_def:
-                self.process_def[key]['status'] = '⌛'
-        
-        self.command_queue.put('process_list')
-
     def create_menu(self):
         menubar = tk.Menu(self)
         self.config(menu=menubar)
-        
+
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="ファイル", menu=file_menu)
-#        file_menu.add_command(label="ブログIDを設定...", command=self.set_blog_id)
+        #        file_menu.add_command(label="ブログIDを設定...", command=self.set_blog_id)
         file_menu.add_separator()
         file_menu.add_command(label="終了", command=self.quit)
-        
+
         edit_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="設定編集", menu=edit_menu)
         edit_menu.add_command(label="config.json5", command=open_config_file)
         edit_menu.add_command(label="keywords.xml", command=open_keywords_app)
         edit_menu.add_command(label="locate.xml", command=open_georss_file)
-        
+
         tool_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="ツール", menu=tool_menu)
-        #tool_menu.add_command(label="レポート一覧HTML作成", command=self.create_reports_index)
-        
+        # tool_menu.add_command(label="レポート一覧HTML作成", command=self.create_reports_index)
+
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="ヘルプ", menu=help_menu)
         help_menu.add_command(label="使い方 (Help)", command=self.open_help)
@@ -268,72 +347,71 @@ class App(tk.Tk):
         # メインフレーム
         main_frame = ttk.Frame(self, padding=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
-        
+
         # 3カラム構成
-        main_frame.columnconfigure(0, weight=1, uniform="group1") # 左
-        main_frame.columnconfigure(1, weight=1, uniform="group1") # 中
-        main_frame.columnconfigure(2, weight=1, uniform="group1") # 右
+        main_frame.columnconfigure(0, weight=1, uniform="group1")  # 左
+        main_frame.columnconfigure(1, weight=1, uniform="group1")  # 中
+        main_frame.columnconfigure(2, weight=1, uniform="group1")  # 右
         main_frame.rowconfigure(0, weight=1)
 
         # --- 左カラム: フォルダ、進行状況、ステップ ---
         left_col = ttk.Frame(main_frame)
         left_col.grid(row=0, column=0, sticky="nsew", padx=5)
-        
+
         # フォルダ操作エリア
         folder_group = ttk.LabelFrame(left_col, text="フォルダ", padding=5)
         folder_group.pack(fill=tk.X, pady=(0, 10))
-        
+
         folders_data = [
-            ("📄 原稿", config['gui']['reports_dir']),
-            ("⚙️ 作業中", config['gui']['work_dir']),
-            ("📝 投稿HTML", config['gui']['upload_dir']),
-            ("📦 完了分", config['gui']['history_dir']),
-            ("🗄️ バックアップ", config['gui']['backup_dir']),
+            ("📄 原稿", config["gui"]["reports_dir"]),
+            ("⚙️ 作業中", config["gui"]["work_dir"]),
+            ("📝 投稿HTML", config["gui"]["upload_dir"]),
+            ("📦 完了分", config["gui"]["history_dir"]),
+            ("🗄️ バックアップ", config["gui"]["backup_dir"]),
         ]
-        
+
         # グリッド配置用のフレーム
         folder_btn_frame = ttk.Frame(folder_group)
         folder_btn_frame.pack(fill=tk.X)
         for i, (label, path) in enumerate(folders_data):
-            btn = ttk.Button(folder_btn_frame, text=label, command=lambda p=path: self.open_folder_action(p))
-            btn.grid(row=i//2, column=i%2, sticky="ew", padx=2, pady=2)
+            btn = ttk.Button(
+                folder_btn_frame,
+                text=label,
+                command=lambda p=path: self.open_folder_action(p),
+            )
+            btn.grid(row=i // 2, column=i % 2, sticky="ew", padx=2, pady=2)
         folder_btn_frame.columnconfigure(0, weight=1)
         folder_btn_frame.columnconfigure(1, weight=1)
 
         # 進行状況エリア
         status_group = ttk.LabelFrame(left_col, text="進行状況", padding=5)
         status_group.pack(fill=tk.X, pady=(0, 10))
-        
+
         self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(status_group, variable=self.progress_var, maximum=100)
+        self.progress_bar = ttk.Progressbar(
+            status_group, variable=self.progress_var, maximum=100
+        )
         self.progress_bar.pack(fill=tk.X, pady=(0, 5))
-        
+
         self.status_label = ttk.Label(status_group, text="待機中...")
         self.status_label.pack(anchor=tk.E)
 
         # ステップ一覧
         self.steps_group = ttk.LabelFrame(left_col, text="ステップ", padding=5)
         self.steps_group.pack(fill=tk.BOTH, expand=True)
-        
-        
-        # self.step_labels = {}
-        # for i, (name,  _, _) in enumerate(self.process_def):
-        #     display_name = name.split('. ', 1)[1] if '. ' in name else name
-        #     # アイコンの代わりに文字を使用
-        #     lbl = ttk.Label(steps_group, text=f"⌛ {display_name}")
-        #     lbl.grid(row=i, column=0, sticky="w", padx=5, pady=2)
-        #     self.step_labels[name] = lbl
 
         # --- 中カラム: ファイル一覧 ---
         mid_col = ttk.Frame(main_frame)
         mid_col.grid(row=0, column=1, sticky="nsew", padx=5)
-        
+
         # HTMLファイル一覧
         html_group = ttk.LabelFrame(mid_col, text="HTMLファイル一覧", padding=5)
         html_group.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-        
+
         self.html_listbox = tk.Listbox(html_group)
-        html_scroll = ttk.Scrollbar(html_group, orient=tk.VERTICAL, command=self.html_listbox.yview)
+        html_scroll = ttk.Scrollbar(
+            html_group, orient=tk.VERTICAL, command=self.html_listbox.yview
+        )
         self.html_listbox.configure(yscrollcommand=html_scroll.set)
         self.html_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         html_scroll.pack(side=tk.RIGHT, fill=tk.Y)
@@ -341,9 +419,11 @@ class App(tk.Tk):
         # 画像ファイル一覧
         image_group = ttk.LabelFrame(mid_col, text="画像ファイル一覧", padding=5)
         image_group.pack(fill=tk.BOTH, expand=True)
-        
+
         self.image_listbox = tk.Listbox(image_group)
-        image_scroll = ttk.Scrollbar(image_group, orient=tk.VERTICAL, command=self.image_listbox.yview)
+        image_scroll = ttk.Scrollbar(
+            image_group, orient=tk.VERTICAL, command=self.image_listbox.yview
+        )
         self.image_listbox.configure(yscrollcommand=image_scroll.set)
         self.image_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         image_scroll.pack(side=tk.RIGHT, fill=tk.Y)
@@ -351,24 +431,28 @@ class App(tk.Tk):
         # --- 右カラム: ログ、アクション ---
         right_col = ttk.Frame(main_frame)
         right_col.grid(row=0, column=2, sticky="nsew", padx=5)
-        
+
         # ログ
         log_group = ttk.LabelFrame(right_col, text="ログ", padding=5)
         log_group.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-        
-        self.log_text = scrolledtext.ScrolledText(log_group, state='disabled', height=10)
+
+        self.log_text = scrolledtext.ScrolledText(
+            log_group, state="disabled", height=10
+        )
         self.log_text.pack(fill=tk.BOTH, expand=True)
-        
+
         # ログの色設定
         self.log_text.tag_config("INFO", foreground="black")
-        self.log_text.tag_config("WARN", foreground="#ff9800") # Orange-ish
-        self.log_text.tag_config("ERROR", foreground="#f44336") # Red
+        self.log_text.tag_config("WARN", foreground="#ff9800")  # Orange-ish
+        self.log_text.tag_config("ERROR", foreground="#f44336")  # Red
 
         # アクションボタン
         actions_frame = ttk.Frame(right_col)
         actions_frame.pack(fill=tk.X)
-        
-        self.btn_check = ttk.Button(actions_frame, text="実行", command=self.on_actions_row_click)
+
+        self.btn_check = ttk.Button(
+            actions_frame, text="実行", command=self.on_actions_row_click
+        )
         self.btn_check.pack(fill=tk.X, ipady=10)
 
     def setup_logging(self):
@@ -376,15 +460,31 @@ class App(tk.Tk):
         root_logger = logging.getLogger()
         for h in root_logger.handlers[:]:
             root_logger.removeHandler(h)
-            
+
         root_logger.setLevel(logging.INFO)
         handler = TkLogHandler(self.log_text)
-        handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+        handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+            )
+        )
         root_logger.addHandler(handler)
-        
+
     def initial_process(self, command_queue, result_queue):
-        command_queue.put('process_list')
-        
+        """GUIを初期状態にリセットする"""
+        self.html_status = {}
+        self.image_status = {}
+        self.html_listbox.delete(0, tk.END)
+        self.image_listbox.delete(0, tk.END)
+        self.progress_var.set(0)
+        self.status_label.config(text="待機中...")
+        self.step_labels = {}
+        self.disp_process_list = {}
+        self.error_file_list = None
+        logger.info("-" * 30)
+
+        self.process = list(main_process.process_def.keys())[0]  # "initial_process"
+        self.command_queue.put(self.process)
 
     def open_folder_action(self, path_str):
         path = Path(path_str)
@@ -395,103 +495,76 @@ class App(tk.Tk):
                 logger.error(f"フォルダ作成エラー: {e}")
                 return
         try:
-            if sys.platform == 'win32':
+            if sys.platform == "win32":
                 os.startfile(path)
-            elif sys.platform == 'darwin':
-                subprocess.Popen(['open', str(path)])
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", str(path)])
             else:
-                subprocess.Popen(['xdg-open', str(path)])
+                subprocess.Popen(["xdg-open", str(path)])
             logger.info(f"フォルダを開きました: {path}")
         except Exception as e:
             logger.error(f"フォルダを開けませんでした: {e}")
 
-    def refresh_process_steps(self, name, status):
-        """プロセスステップ表示を更新する"""
-        if name in self.process_def:
-            self.process_def[name]['status'] = status
-        
-        # 既存のラベルをクリア
-        for lbl in self.step_labels.values():
-            lbl.destroy()
-        self.step_labels = {}
-        count = 0
-        completed_count = 0
-        for process in self.process_def.values():
-            lbl = ttk.Label(self.steps_group, text=f"{process['status']} {process['name']}")
-            lbl.grid(row=count, column=0, sticky="w", padx=5, pady=2)
-            self.step_labels[process['name']] = lbl
-            count += 1
-            if process['status'] == '✔':
-                completed_count += 1
-        
-        # プログレスバー更新
-        total_steps = len(self.process_def)
-        if total_steps > 0:
-            progress = (completed_count / total_steps) * 100
-            self.progress_var.set(progress)
-            self.status_label.config(text=f"{int(progress)}% 完了")
-        logger.info("プロセスステップを更新しました。")
-
-
-
-    #def start_html_process(self):
-        # HTMLタスクを生成（呼び出し方は上と同じ！）
-#        self.current_task = HtmlEditTask(self.progress_queue)
-        #self.execute_common()
-
-    def execute_common(self):
+    def execute_common(self, retry=False, resume=False):
         # 共通の実行＆監視フロー
-        if self.process:
-            self.process = self.process_def[self.process]['nextprocess']
+        if (
+            retry
+            and self.process in main_process.process_def
+            and "retryprocess" in main_process.process_def[self.process]
+        ):
+            self.process = main_process.process_def[self.process]["retryprocess"]
+        elif (
+            resume
+            and self.process in main_process.process_def
+            and "resumeprocess" in main_process.process_def[self.process]
+        ):
+            self.process = main_process.process_def[self.process]["resumeprocess"]
         else:
-            self.process = list(self.process_def.keys())[0]
+            self.process = main_process.process_def[self.process]["nextprocess"]
 
         self.command_queue.put(self.process)
 
-
     def on_actions_row_click(self):
         # 処理中はボタンを無効化
-        self.btn_check.configure(state='disabled')
-        # ファイルチェック処理のプレースホルダー
+        self.btn_check.configure(state="disabled")
+        # 処理開始
         self.execute_common()
-        logger.info("ファイルリストを更新しました。")
-        # ここに実際の処理を追加可能
+        logger.info("処理を開始しました。")
 
-    def update_blog_id(self, blog_id):
-        """ロジックに専念するメソッド"""
-        if not blog_id:
-            raise ValueError("Blog IDが入力されていません。")
+    def error_file_message(self):
+        if self.error_file_list:
+            # 表示するファイル数を制限（最大10件）
+            display_list = list(self.error_file_list)
+            limit = 10
+            if len(display_list) > limit:
+                filenames = "\n".join(str(f) for f in display_list[:limit])
+                filenames += f"\n... 他 {len(display_list) - limit} 件"
+            else:
+                filenames = "\n".join(str(f) for f in display_list)
 
-        config['upload_art']['blog_id'] = blog_id
-        try:
-            save_config()
-            logger.info(f"Blog ID更新成功: {blog_id}")
-            return True
-        except (IOError, OSError) as e: # OSレベルのエラーを具体的に捕捉
-            logger.error(f"Config保存失敗: {e}")
-            raise RuntimeError(f"設定ファイルの保存に失敗しました: {e}")
-        
-    def on_save_button_click(self):
-        blog_id = self.entry_blog_id.get().strip()
-        
-        try:
-            # ロジックの呼び出し
-            self.update_blog_id(blog_id)
-            messagebox.showinfo("成功", f"Blog IDを設定しました: {blog_id}")
-        except ValueError as ve:
-            messagebox.showwarning("入力エラー", str(ve))
-        except Exception as e:
-            messagebox.showerror("システムエラー", str(e))
+            if messagebox.askyesno(
+                "異常ファイル",
+                f"以下のファイルを確認しますか？\n（先頭5件のみ開きます）\n{filenames}",
+            ):
+                # 開くファイルを5件に制限
+                files_to_open = display_list[:5]
+                logger.info(f"先頭{len(files_to_open)}件のエラーファイルを開きます。")
+                for fname in files_to_open:
+                    open_path = fname
+                    open_file_with_default_app(open_path)
+            self.error_file_list = None  # メッセージ表示後にリセット
+            return True  # エラーファイルがあったことを示す
+        return False  # エラーファイルがなかったことを示す
 
     def open_help(self):
         """ヘルプファイル(HTML)をブラウザで開く"""
-        docs_dir = Path(__file__).parent / 'docs'
-        help_file = docs_dir / 'help.html'
-        
+        docs_dir = Path(__file__).parent / "docs"
+        help_file = docs_dir / "help.html"
+
         # ヘルプファイルがない場合は簡易作成
         if not help_file.exists():
             self.create_default_help(help_file)
-            
+
         webbrowser.open(help_file.as_uri())
 
     def create_default_help(self, path):
@@ -528,13 +601,17 @@ class App(tk.Tk):
             </body>
             </html>
             """
-            with open(path, 'w', encoding='utf-8') as f:
+            with open(path, "w", encoding="utf-8") as f:
                 f.write(content.strip())
         except Exception as e:
             logger.error(f"ヘルプ生成失敗: {e}")
 
     def show_about(self):
-        messagebox.showinfo("バージョン情報", "HTML to Blogger\nVersion: 1.0.0\n\n© OpenStreetMap contributors")
+        messagebox.showinfo(
+            "バージョン情報",
+            "HTML to Blogger\nVersion: 1.0.0\n\nMap Data © OpenStreetMap contributors",
+        )
+
 
 # --- mainエントリポイント ---
 if __name__ == "__main__":

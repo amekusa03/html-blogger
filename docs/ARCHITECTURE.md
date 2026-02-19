@@ -56,21 +56,21 @@ htmltobrogger/
 │
 ├── 📝 設定ファイル
 │   ├── keywords.xml            ← メタキーワード定義（ユーザー編集）
-│   ├── locate.xml        ← 位置情報キャッシュ（自動更新）
+│   ├── locate.xml              ← 位置情報キャッシュ（自動更新）
 │   ├── credentials.json        ← Google認証（GitHubに含めない！）
 │   └── token.pickle            ← 認証トークン（自動生成）
 │
 ├── 📚 ドキュメント
 │   ├── README.md               ← プロジェクト概要・セットアップ
 │   ├── LICENSE                 ← MIT ライセンス
-│   ├── requirements.txt         ← Python依存パッケージ一覧
+│   ├── requirements.txt        ← Python依存パッケージ一覧
 │   ├── .gitignore              ← Git除外ファイル設定
 │   │
 │   └── docs/
 │       ├── SETUP.md            ← Google Cloud API設定手順
-│       ├── TROUBLESHOOTING.md   ← 問題解決ガイド
-│       ├── ARCHITECTURE.md      ← アーキテクチャ詳細（このファイル）
-│       └── CONTRIBUTING.md      ← 開発者向けガイド（計画中）
+│       ├── TROUBLESHOOTING.md  ← 問題解決ガイド
+│       ├── ARCHITECTURE.md     ← アーキテクチャ詳細（このファイル）
+│       └── CONTRIBUTING.md     ← 開発者向けガイド（計画中）
 │
 ├── 📦 その他
 │   ├── .github/                ← GitHub設定
@@ -89,13 +89,13 @@ htmltobrogger/
 ## 処理パイプラインのデータフロー
 
 ```
-① imort-file.py
+① imort_file.py
    ファイルチェック
 report/                                    ← ユーザー入力
    ↓
 backup/
 work/
-② serial-file.py
+② serial_file.py
    フォルダ除去、シリアル追加
    ↓serial/
 work/ (HTML + 画像)
@@ -122,7 +122,7 @@ work/ (更新)
    ↓
 work/ (更新)
    ↓
-⑦ mod-image.py
+⑦ mod_image.py
    EXIF削除・ウォーターマーク追加
    ↓
 work/ (処理完了)
@@ -131,14 +131,12 @@ work/ (処理完了)
 image/ (画像)
    Bloggerへ画像アップロード                 ←ユーザー操作  
    ↓
-⑨ analize_media_manager.py
+⑨ link_html.py
     メディアマネージャーファイル保存         ←ユーザー操作
    メディアマネージャーファイル解析
-   ↓
-⑩ link_html.py
    URLリンク
    ↓
-⑪ up_loader.py
+⑩ up_loader.py
 art_ready_load/ (投稿設定)
    自動投稿
    ↓
@@ -149,85 +147,105 @@ Blogger (オンライン)
 ## 設定ファイルの詳細
 
 ### config.json5
-```ini
-; 共通設定
-[COMMON]
-TEST_MODE = true
-IMAGE_EXTENSIONS = .jpg, .jpeg, .png, .gif
-HTML_EXTENSIONS = .html, .htm
-XML_EXTENSIONS = .xml
-
-; Google認証設定
-[AUTH_GOOGLE]
-SCOPES = https://www.googleapis.com/auth/blogger
-CREDENTIALS_FILE = ./credentials.json
-TOKEN_FILE = ./token.pickle
-
-; ファイルインポート設定
-[IMPORT_FILE]
-INPUT_DIR = ./reports
-OUTPUT_DIR = ./work
-BACKUP = true
-BACKUP_DIR = ./backup
-
-; HTMLクリーン設定
-[CLEAN_HTML]
-INPUT_DIR = ./work
-OUTPUT_DIR = ./work
-
-; キーワード検索設定
-[FIND_KEYWORD]
-INPUT_DIR = ./work
-OUTPUT_DIR = ./work
-KEYWORDS_XML_FILE = ./keywords.xml
-
-; 位置情報検索設定
-[FIND_LOCATION]
-INPUT_DIR = ./work
-OUTPUT_DIR = ./work
-LOCATION_XML_FILE = ./locate.xml
-GEOCODE_RETRIES = 3
-GEOCODE_WAIT = 1.1
-GEOCODE_TIMEOUT = 10
-GEOCODE_DEBUG = false
-
-; 画像加工設定
-[MOD_IMAGE]
-INPUT_DIR = ./work
-OUTPUT_DIR = ./work
-WATERMARK_TEXT = しふとべる
-
-; 画像アップロード設定 (手動/準備)
-[UPLOAD_IMAGE]
-INPUT_DIR = ./work
-UPLOAD_DIR = ./image
-HISTORY_DIR = ./history
-
-; HTMLリンク設定
-[LINK_HTML]
-INPUT_DIR = ./work
-MEDIA_MANAGER_DIR = ./
-UPLOAD_DIR = ./ready_load
-
-; 記事アップロード設定
-[UPLOAD_ART]
-INPUT_DIR = ./ready_load
-UPLOAD_DIR = ./finished
-HISTORY_DIR = ./history
-BLOG_ID = 1234567890123456789
-DELAY_SECONDS = 1.1
-MAX_POSTS_PER_RUN = 5
-MAX_RETRIES = 3
-
-; GUI設定
-[GUI]
-REPORTS_DIR = ./reports
-WORK_DIR = ./work
-UPLOAD_DIR = ./ready_load
-HISTORY_DIR = ./history
-BACKUP_DIR = ./backup
-BLOGGER_URL = https://www.blogger.com/blogger.g?blogID=
-MEDIA_MANAGER_URL = https://www.blogger.com/mediamanager/album/
+```json5
+{
+  // 共通設定
+  common: {
+    test_mode: 'false',               // テストモード (true/false) 
+    image_extensions: ['.jpg', '.jpeg', '.png', '.gif'], // 画像拡張子
+    html_extensions: ['.html', '.htm'],  // HTML拡張子
+    htmlandimage_extensions: ['.html', '.htm', '.jpg', '.jpeg', '.png', '.gif'], // HTMLと画像拡張子
+    xml_extensions: ['.xml'],   // XML拡張子
+  },
+  // Google認証設定
+  auth_google: {
+    scopes: 'https://www.googleapis.com/auth/blogger',  // Blogger API スコープ
+    credentials_file: './data/credentials.json',  // OAuth2認証情報ファイル
+    token_file: './data/token.pickle',        // 保存トークンファイル
+  },
+  // ファイルインポート設定
+  import_file: {
+    input_dir: './data/report',          // 入力フォルダ
+    output_dir: './data/work',           // 出力フォルダ
+    backup: 'true',                    // ファイルバックアップ有効
+    backup_dir: './data/backup',        // バックアップフォルダ
+  },
+  // シリアライザ設定
+  serializer: {
+    input_dir: './data/work',            // 入力フォルダ
+    serialization_dir: './data/serialization',  // シリアライズフォルダ
+    output_dir: './data/work',           // 出力フォルダ
+  },
+  // HTMLクリーン設定
+  clean_html: {
+    input_dir: './data/work',            // 入力フォルダ
+    output_dir: './data/work',           // 出力フォルダ
+  },
+  // キーワード検索設定
+  find_keyword: {
+    input_dir: './data/work',            // 入力フォルダ
+    output_dir: './data/work',           // 出力フォルダ
+    keywords_xml_file: './data/keywords.xml',  // キーワードXMLファイル
+  },
+  // 位置情報検索設定
+  find_location: {
+    input_dir: './data/work',            // 入力フォルダ
+    output_dir: './data/work',           // 出力フォルダ
+    location_xml_file: './data/location.xml',  // 地域情報XMLファイル
+    geocode_retries: 3,             // ジオコーディングのリトライ回数
+    geocode_wait: 1.1,              // ジオコーディングの待機時間（秒）
+    geocode_timeout: 10,            // ジオコーディングのタイムアウト時間（秒）
+    geocode_debug: false,           // ジオコーディングのデバッグモード  
+  },
+  // 日付検索設定
+    find_date: {
+    input_dir: './data/work',        // 入力フォルダ
+    output_dir: './data/work',           // 出力フォルダ（同じフォルダに上書き）
+  },
+  // 画像加工設定
+  mod_image: {
+    input_dir: './data/work',           // 入力フォルダ
+    output_dir: './data/work',          // 出力フォルダ
+    watermark_text: 'サンプル',            // 透かしテキスト
+  },
+  // 画像アップロード設定
+  upload_image: {
+    input_dir: './data/work',            // 入力フォルダ
+    upload_dir: './data/upload',         // アップロードフォルダ
+  },
+  // HTMLリンク設定
+  link_html: {
+    input_dir: './data/work',            // 入力フォルダ
+    history_dir: './data/history',       // 履歴フォルダ
+    upload_dir: './data/upload',         // アップロードフォルダ
+    media_manager_dir: './data/media_man', // メディアマネージャーフォルダ
+    link_list_file: './data/work/image_upload_list.txt',  // 画像アップロードリストファイル名
+    link_list_file_html: './data/history/image_upload_list.html',  // 画像アップロードリストhtml
+  },
+  // 記事アップロード設定
+    upload_art: {
+    input_dir: './data/work',            // 入力フォルダ
+    upload_dir: './data/upload',         // アップロードフォルダ
+    history_dir: './data/history',       // 履歴フォルダ
+    blog_id: 1234567890123456789,   // ブログID
+    delay_seconds: 11.1,            // Blogger API標準値（制限　100/100 QPS? 推奨 1.5~2 QPS?）
+    max_posts_per_run: 45,          // 1回の実行で処理する最大ポスト数(API制限対 50 件/日?)
+    max_retries: 3,                 // アップロードリトライ回数
+  },
+  // 履歴オープン設定
+  history_open: {
+    output_dir: './data/history',
+  },
+  // GUI設定
+  gui: {
+    reports_dir: './data/report',        // 元レポートフォルダ
+    work_dir: './data/work',             // 作業フォルダ
+    upload_dir: './data/upload',         // アップロードフォルダ
+    history_dir: './data/history',       // 履歴フォルダ
+    backup_dir: './data/backup',        // バックアップフォルダ
+    blogger_url: 'https://www.blogger.com/blogger.g?blogID=',  // ブロガーURL
+    media_manager_url: 'https://www.blogger.com/mediamanager/album/',   // ブロガーメディアマネージャーURL
+}
 ```
 
 ### keywords.xml

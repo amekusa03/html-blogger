@@ -3,7 +3,7 @@
 {
   // 共通設定
   common: {
-    test_mode: 'false',               // テストモード (true/false) 
+    test_mode: 'true',               // テストモード (true/false) 
     image_extensions: ['.jpg', '.jpeg', '.png', '.gif'], // 画像拡張子
     html_extensions: ['.html', '.htm'],  // HTML拡張子
     htmlandimage_extensions: ['.html', '.htm', '.jpg', '.jpeg', '.png', '.gif'], // HTMLと画像拡張子
@@ -64,13 +64,13 @@
   upload_image: {
     input_dir: './data/work',            // 入力フォルダ
     upload_dir: './data/upload',         // アップロードフォルダ
-    history_dir: './data/history',       // 履歴フォルダ
   },
   // HTMLリンク設定
   link_html: {
     input_dir: './data/work',            // 入力フォルダ
-    media_manager_dir: './data/media_man', // メディアマネージャーフォルダ
+    history_dir: './data/history',       // 履歴フォルダ
     upload_dir: './data/upload',         // アップロードフォルダ
+    media_manager_dir: './data/media_man', // メディアマネージャーフォルダ
     link_list_file: './data/work/image_upload_list.txt',  // 画像アップロードリストファイル名
     link_list_file_html: './data/history/image_upload_list.html',  // 画像アップロードリストhtml
   },
@@ -79,9 +79,9 @@
     input_dir: './data/work',            // 入力フォルダ
     upload_dir: './data/upload',         // アップロードフォルダ
     history_dir: './data/history',       // 履歴フォルダ
-    blog_id: 1234567890123456789,   // ブログID
+    blog_id: 12334567890123456789,   // ブログID
     delay_seconds: 11.1,            // Blogger API標準値（制限　100/100 QPS? 推奨 1.5~2 QPS?）
-    max_posts_per_run: 25,          // 1回の実行で処理する最大ポスト数(API制限対 50 件/日?)
+    max_posts_per_run: 40,          // 1回の実行で処理する最大ポスト数(API制限対 50 件/日?)
     max_retries: 3,                 // アップロードリトライ回数
   },
   // 履歴オープン設定

@@ -87,8 +87,8 @@
     </location>
     <location>
         <name>エメラルド</name>
-        <latitude>-23.5263</latitude>
-        <longitude>148.1617</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>旅行</name>
@@ -157,8 +157,8 @@
     </location>
     <location>
         <name>アルプス</name>
-        <latitude>35.6870305</latitude>
-        <longitude>139.3060075</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>錦川下り</name>
@@ -182,8 +182,8 @@
     </location>
     <location>
         <name>切符</name>
-        <latitude>51.272593</latitude>
-        <longitude>31.7417235</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>三陸</name>
@@ -197,8 +197,8 @@
     </location>
     <location>
         <name>ストラリア爆走紀行</name>
-        <latitude>-25.274398</latitude>
-        <longitude>133.775136</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>オーストラリア</name>
@@ -217,8 +217,8 @@
     </location>
     <location>
         <name>日本</name>
-        <latitude>36.5748441</latitude>
-        <longitude>139.2394179</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>北岳</name>
@@ -287,13 +287,13 @@
     </location>
     <location>
         <name>寝台</name>
-        <latitude>33.7517324</latitude>
-        <longitude>112.8809485</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>列車</name>
-        <latitude>3.1561275</latitude>
-        <longitude>101.7048643</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>奄美紀行</name>
@@ -322,8 +322,8 @@
     </location>
     <location>
         <name>冬キャンプ</name>
-        <latitude>35.1201578</latitude>
-        <longitude>138.5382388</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>キャンプ</name>
@@ -392,8 +392,8 @@
     </location>
     <location>
         <name>シュ</name>
-        <latitude />
-        <longitude />
+        <latitude>43.6011591</latitude>
+        <longitude>73.7592188</longitude>
     </location>
     <location>
         <name>焼岳</name>
@@ -582,8 +582,8 @@
     </location>
     <location>
         <name>カシオペア</name>
-        <latitude>35.9376407</latitude>
-        <longitude>139.6180235</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>月日</name>
@@ -597,13 +597,13 @@
     </location>
     <location>
         <name>写真</name>
-        <latitude>35.641543</latitude>
-        <longitude>139.7133962</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>べっし</name>
-        <latitude>33.5276581</latitude>
-        <longitude>133.0583382</longitude>
+        <latitude>33.4999266</latitude>
+        <longitude>133.0421351</longitude>
     </location>
     <location>
         <name>テスト投稿</name>
@@ -647,53 +647,53 @@
     </location>
     <location>
         <name>理解</name>
-        <latitude>38.4603127</latitude>
-        <longitude>40.6476876</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>はず</name>
-        <latitude>34.9123291</latitude>
-        <longitude>135.2831232</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>これ</name>
-        <latitude>36.638392</latitude>
-        <longitude>127.6961188</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>ぐお</name>
-        <latitude>42.8649495</latitude>
-        <longitude>0.3618017</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>宴会</name>
-        <latitude>37.8728046</latitude>
-        <longitude>113.7552302</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>ダウン</name>
-        <latitude>48.2115395</latitude>
-        <longitude>16.3636267</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>中華</name>
-        <latitude>30.8196634</latitude>
-        <longitude>107.1885252</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>主賓</name>
-        <latitude>6.541527</latitude>
-        <longitude>100.2967</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>よう</name>
-        <latitude>35.7712524</latitude>
-        <longitude>139.5186207</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>主役</name>
-        <latitude>15.9266657</latitude>
-        <longitude>107.9650855</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>寝ちゃえ〜〜ぐお〜</name>
@@ -702,8 +702,8 @@
     </location>
     <location>
         <name>いぇ〜〜い</name>
-        <latitude>41.6808672</latitude>
-        <longitude>44.0287806</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>飲め飲め飲め！！！</name>
@@ -711,7 +711,7 @@
         <longitude />
     </location>
     <location>
-        <name>いや〜笑いました(^^ゞ</name>
+        <name>いや〜笑いました^^ゞ</name>
         <latitude />
         <longitude />
     </location>
@@ -722,28 +722,23 @@
     </location>
     <location>
         <name>キッカー</name>
-        <latitude>58.3612364</latitude>
-        <longitude>26.5635565</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>自転車</name>
-        <latitude>34.7083745</latitude>
-        <longitude>134.8826301</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>チャリ</name>
-        <latitude>35.6873384</latitude>
-        <longitude>139.5976192</longitude>
-    </location>
-    <location>
-        <name>紀伊半島３３４ｋｍサイクリング</name>
         <latitude />
         <longitude />
     </location>
     <location>
         <name>野宿</name>
-        <latitude>39.2841589</latitude>
-        <longitude>140.7298839</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>アメリカ遠征</name>
@@ -757,8 +752,8 @@
     </location>
     <location>
         <name>チャリンコ</name>
-        <latitude>35.7209731</latitude>
-        <longitude>139.7502173</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>紀伊の古道</name>
@@ -767,8 +762,8 @@
     </location>
     <location>
         <name>シュガー</name>
-        <latitude>38.2534957</latitude>
-        <longitude>140.879366</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>紀伊</name>
@@ -777,18 +772,18 @@
     </location>
     <location>
         <name>古道</name>
-        <latitude>35.5169682</latitude>
-        <longitude>105.2269906</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>ここ</name>
-        <latitude>-12.0728315</latitude>
-        <longitude>96.8409375</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>紹介</name>
-        <latitude>24.7040845</latitude>
-        <longitude>100.2539467</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>三重</name>
@@ -807,28 +802,28 @@
     </location>
     <location>
         <name>入口</name>
-        <latitude>40.0823671</latitude>
-        <longitude>139.9689693</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>終点</name>
-        <latitude>25.9020418</latitude>
-        <longitude>119.6286514</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>時間</name>
-        <latitude>43.8029391</latitude>
-        <longitude>143.8946351</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>地図</name>
-        <latitude>-10.3333333</latitude>
-        <longitude>-53.2</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>コケ</name>
-        <latitude>35.6799901</latitude>
-        <longitude>139.7582825</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>波田須</name>
@@ -837,18 +832,18 @@
     </location>
     <location>
         <name>具合</name>
-        <latitude>25.9401725</latitude>
-        <longitude>109.4670573</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>道路</name>
-        <latitude>13.8290381</latitude>
-        <longitude>-61.0366225</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>到着</name>
-        <latitude>41.9034236</latitude>
-        <longitude>12.4973311</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>白山ス</name>
@@ -857,8 +852,8 @@
     </location>
     <location>
         <name>林道</name>
-        <latitude>34.3233546</latitude>
-        <longitude>134.0732372</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>夏の北北海道ドライブ走破記</name>
@@ -866,24 +861,14 @@
         <longitude />
     </location>
     <location>
-        <name>カナダでスキ</name>
+        <name>三昧</name>
         <latitude />
         <longitude />
-    </location>
-    <location>
-        <name>三昧</name>
-        <latitude>39.3130069</latitude>
-        <longitude>140.5680808</longitude>
     </location>
     <location>
         <name>中国地方の旅</name>
         <latitude>35.0695505</latitude>
         <longitude>135.7427502</longitude>
-    </location>
-    <location>
-        <name>羊蹄山と掛川城</name>
-        <latitude />
-        <longitude />
     </location>
     <location>
         <name>蔵王</name>
@@ -906,11 +891,6 @@
         <longitude>133.2173416</longitude>
     </location>
     <location>
-        <name>北海道、自転車で走ってみたい</name>
-        <latitude />
-        <longitude />
-    </location>
-    <location>
         <name>冬の富良野</name>
         <latitude>43.3608536</latitude>
         <longitude>142.6023696</longitude>
@@ -922,12 +902,632 @@
     </location>
     <location>
         <name>クライミング）</name>
-        <latitude>35.699957</latitude>
-        <longitude>139.9751321</longitude>
+        <latitude />
+        <longitude />
     </location>
     <location>
         <name>沢登り</name>
-        <latitude>34.9481258</latitude>
-        <longitude>137.5294721</longitude>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>NZ3</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>ニュ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>ランド</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>ニュージーランド</name>
+        <latitude>-41.5000831</latitude>
+        <longitude>172.8344077</longitude>
+    </location>
+    <location>
+        <name>今日</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>元気</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>アクティビティ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>花見宴会！！</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>花見</name>
+        <latitude>35.4653483</latitude>
+        <longitude>133.8801375</longitude>
+    </location>
+    <location>
+        <name>NZ2</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>諏訪湖サイクリング</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>諏訪湖</name>
+        <latitude>36.0479452</latitude>
+        <longitude>138.0832846</longitude>
+    </location>
+    <location>
+        <name>サイクリング</name>
+        <latitude>33.015664</latitude>
+        <longitude>129.6819735</longitude>
+    </location>
+    <location>
+        <name>NZ4</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>田貫湖畔宴会？</name>
+        <latitude>23.0265066</latitude>
+        <longitude>116.2950301</longitude>
+    </location>
+    <location>
+        <name>ハイク</name>
+        <latitude>19.9398873</latitude>
+        <longitude>-155.1679063</longitude>
+    </location>
+    <location>
+        <name>田貫</name>
+        <latitude>33.1531818</latitude>
+        <longitude>111.677801</longitude>
+    </location>
+    <location>
+        <name>湖畔</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>カヌ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>NZ1</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>小川山キャンプ</name>
+        <latitude>35.7566212</latitude>
+        <longitude>138.9536297</longitude>
+    </location>
+    <location>
+        <name>０１’８</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>１８−１９</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>小川山</name>
+        <latitude>35.9094463</latitude>
+        <longitude>138.6122912</longitude>
+    </location>
+    <location>
+        <name>北沢登り</name>
+        <latitude>35.0291442</latitude>
+        <longitude>135.6808305</longitude>
+    </location>
+    <location>
+        <name>北沢</name>
+        <latitude>37.1718118</latitude>
+        <longitude>139.1121002</longitude>
+    </location>
+    <location>
+        <name>クライミング</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>参加</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>斉藤</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>洞窟探検</name>
+        <latitude>35.714018</latitude>
+        <longitude>139.725033</longitude>
+    </location>
+    <location>
+        <name>洞窟探検！！</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>洞窟</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>探検</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>富士</name>
+        <latitude>35.1514949</latitude>
+        <longitude>138.6509228</longitude>
+    </location>
+    <location>
+        <name>樹海</name>
+        <latitude>31.3113626</latitude>
+        <longitude>121.5020943</longitude>
+    </location>
+    <location>
+        <name>背負子</name>
+        <latitude>23.2999</latitude>
+        <longitude>110.25</longitude>
+    </location>
+    <location>
+        <name>風穴</name>
+        <latitude>36.007758</latitude>
+        <longitude>138.58855</longitude>
+    </location>
+    <location>
+        <name>場所</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>地方</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>われわれ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>タスマンズ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>地底</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>青笹山ハイク</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>沖縄クライミングツア</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>富士山麓ハイキング</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>登山</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>式根島で温泉三昧</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>いづみ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>こどもの日に帰ろう</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>アル</name>
+        <latitude>39.7779175</latitude>
+        <longitude>43.1684371</longitude>
+    </location>
+    <location>
+        <name>秋の小川山キャンプ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>スモ</name>
+        <latitude>50.7696518</latitude>
+        <longitude>34.3289305</longitude>
+    </location>
+    <location>
+        <name>クパ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>ティ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>ＧＷ</name>
+        <latitude>35.8713</latitude>
+        <longitude>128.6018</longitude>
+    </location>
+    <location>
+        <name>沖縄ふりくらツア</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>瑞牆山ハイク</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>カサメリ沢キャンプ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>プチイベント</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>浜石岳ハイキング</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>春の宴会</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>フリ</name>
+        <latitude>20.5445677</latitude>
+        <longitude>105.9339242</longitude>
+    </location>
+    <location>
+        <name>クラ沖縄ツア</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>花いっぱい温泉</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>長者ヶ岳ハイク</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>戸隠スノ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>本栖湖カヌ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>朝霧ＭＴＢ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>鳳凰三山登山</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>沖縄アクティビティ２</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>白樺湖ロイヤルヒルでスキ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>大会</name>
+        <latitude>29.8523054</latitude>
+        <longitude>119.3163144</longitude>
+    </location>
+    <location>
+        <name>水窪蕎麦打ち体験</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>ダッチオ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>ブンでピザ作り</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>Mt.FUJI</name>
+        <latitude>35.3628384</latitude>
+        <longitude>138.7307677</longitude>
+    </location>
+    <location>
+        <name>JAZZ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>FESTIVAL</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>2004</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>冬のコテ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>ジ宴会</name>
+        <latitude>37.3875331</latitude>
+        <longitude>139.3503501</longitude>
+    </location>
+    <location>
+        <name>西伊豆カヌ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>小川山（廻り目平キャンプ場）</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>流星見会</name>
+        <latitude>35.8825972</latitude>
+        <longitude>139.9241372</longitude>
+    </location>
+    <location>
+        <name>森町サイクリング</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>沖縄アクティビティ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>気田ホタルまつり</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>天城ホタル狩り</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>ホタルコ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>集会</name>
+        <latitude>26.851123</latitude>
+        <longitude>117.898069</longitude>
+    </location>
+    <location>
+        <name>茶臼山高原天体観測</name>
+        <latitude>34.9463428</latitude>
+        <longitude>135.7617927</longitude>
+    </location>
+    <location>
+        <name>満観峰ハイク（おにぎり部）</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>コラボキャンプ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>夏キャンプ</name>
+        <latitude>34.3229386</latitude>
+        <longitude>139.2203597</longitude>
+    </location>
+    <location>
+        <name>富士川ラフティング</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>掛川でバイキング</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>温泉で新年会</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>青笹山</name>
+        <latitude>35.2002617</latitude>
+        <longitude>138.3984199</longitude>
+    </location>
+    <location>
+        <name>牆山</name>
+        <latitude>22.2319801</latitude>
+        <longitude>113.8812912</longitude>
+    </location>
+    <location>
+        <name>ハイク・カサメリ</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>森町</name>
+        <latitude>42.1051532</latitude>
+        <longitude>140.5765977</longitude>
+    </location>
+    <location>
+        <name>温泉</name>
+        <latitude>44.9736609</latitude>
+        <longitude>80.8916497</longitude>
+    </location>
+    <location>
+        <name>新年</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>気田</name>
+        <latitude>35.4658682</latitude>
+        <longitude>139.3642822</longitude>
+    </location>
+    <location>
+        <name>ホタル</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>まつり</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>いっぱい</name>
+        <latitude>34.6830462</latitude>
+        <longitude>135.4965279</longitude>
+    </location>
+    <location>
+        <name>浜石岳</name>
+        <latitude>35.120141</latitude>
+        <longitude>138.5335281</longitude>
+    </location>
+    <location>
+        <name>ハイキング</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>鳳凰</name>
+        <latitude>28.010585</latitude>
+        <longitude>109.532129</longitude>
+    </location>
+    <location>
+        <name>掛川</name>
+        <latitude>34.7693974</latitude>
+        <longitude>138.0146156</longitude>
+    </location>
+    <location>
+        <name>バイキング</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>こども</name>
+        <latitude>42.9867536</latitude>
+        <longitude>144.3790111</longitude>
+    </location>
+    <location>
+        <name>富士川</name>
+        <latitude>35.532257</latitude>
+        <longitude>138.451057</longitude>
+    </location>
+    <location>
+        <name>ラフティング</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>水窪</name>
+        <latitude>35.1637594</latitude>
+        <longitude>137.8705062</longitude>
+    </location>
+    <location>
+        <name>体験</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>ダッチオーブン</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>ピザ</name>
+        <latitude>35.6260707</latitude>
+        <longitude>139.6948012</longitude>
+    </location>
+    <location>
+        <name>式根島</name>
+        <latitude>34.3264269</latitude>
+        <longitude>139.213704</longitude>
+    </location>
+    <location>
+        <name>観峰</name>
+        <latitude>36.1970107</latitude>
+        <longitude>138.0856503</longitude>
+    </location>
+    <location>
+        <name>水窪ツア</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>羊蹄山と掛川城</name>
+        <latitude />
+        <longitude />
+    </location>
+    <location>
+        <name>羊蹄山</name>
+        <latitude>42.8269572</latitude>
+        <longitude>140.8067401</longitude>
     </location>
 </root>

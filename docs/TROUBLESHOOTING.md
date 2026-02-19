@@ -154,7 +154,6 @@ rm token.pickle
 
 **原因**: 以下のいずれか：
 - `reports/` フォルダに HTML ファイルがない
-- HTML ファイルの名前に日本語が含まれている
 - ファイルが .html 拡張子ではない
 
 **解決策**:
@@ -162,8 +161,8 @@ rm token.pickle
 1. ファイルを確認
 ```
 report/
-├── 0205tai/          ← フォルダ名は日本語OK
-│   └── index.html    ← ファイル名はASCII
+├── 0205tai/          
+│   └── index.html    
 ├── 0209nori/
 │   └── index.html
 ```
@@ -277,17 +276,11 @@ image/
 
 #### Q: EXIF データが削除されない
 
-**原因**: `PHOROS_DELEXIF_ADDWATERMARK` が無効化されている
+**原因**: 対応していない画像形式
 
 **解決策**:
 
-1. `config.json5` を確認
-```ini
-[PHOROS_DELEXIF_ADDWATERMARK]
-ENABLED = true  # true に設定
-```
-
-2. 画像形式を確認
+1. 画像形式を確認
 - JPEG, PNG, GIF のみ対応
 - その他の形式は処理スキップ
 
@@ -302,10 +295,11 @@ ENABLED = true  # true に設定
 **解決策**:
 
 1. `config.json5` を確認
-```ini
-[PHOROS_DELEXIF_ADDWATERMARK]
-ENABLED = true
-WATERMARK = © My Site
+```json5
+  // 画像加工設定
+  mod_image: {
+    watermark_text: 'サンプル',  // 透かしテキスト
+  },
 ```
 
 2. フォント を確認（Linux の場合）
@@ -361,15 +355,14 @@ rm token.pickle
 
 #### Q: `Invalid request` エラー
 
-**原因**: Atom フィード形式が正しくない
+**原因**:  フィード形式が正しくない
 
 **解決策**:
-1. `ready_load/feed.atom` を確認
-2. XML形式が正しいか確認（XMLエディタで開く）
+1. `ready_load/` のhtmlファイルを確認
+2. ブラウザーで正常に表示できるか確認
 3. 必須フィールドが含まれているか確認：
-   - `<title>`
-   - `<content>`
-   - `<published>`
+   - `<html>`
+   - `<head>`
 
 ---
 
@@ -395,7 +388,7 @@ rm token.pickle
 Ctrl+C
 
 # アプリケーション再起動
-python html_tobrogger.py
+python html-tobrogger.py
 ```
 
 ---
@@ -409,7 +402,7 @@ python html_tobrogger.py
 **Linux/Mac**:
 ```bash
 export LANG=ja_JP.UTF-8
-python html_tobrogger.py
+python html-tobrogger.py
 ```
 
 **Windows (PowerShell)**:
@@ -469,7 +462,7 @@ logger.error(f"エラー: {error}")
 ### ターミナル出力をファイルに保存
 
 ```bash
-python html_tobrogger.py > debug.log 2>&1
+python html-tobrogger.py > debug.log 2>&1
 ```
 
 ### XML を検証
