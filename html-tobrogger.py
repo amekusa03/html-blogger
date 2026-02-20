@@ -7,12 +7,12 @@ import sys
 import threading
 import tkinter as tk
 import webbrowser
-from pathlib import Path
 from tkinter import messagebox, scrolledtext, ttk
 
 import main_process
 from file_class import SmartFile
 from parameter import (
+    Path,
     config,
     open_config_file,
     open_file_with_default_app,
@@ -494,16 +494,14 @@ class App(tk.Tk):
             except Exception as e:
                 logger.error(f"フォルダ作成エラー: {e}")
                 return
-        try:
-            if sys.platform == "win32":
-                os.startfile(path)
-            elif sys.platform == "darwin":
-                subprocess.Popen(["open", str(path)])
-            else:
-                subprocess.Popen(["xdg-open", str(path)])
+
+        if open_file_with_default_app(path):
             logger.info(f"フォルダを開きました: {path}")
-        except Exception as e:
-            logger.error(f"フォルダを開けませんでした: {e}")
+        else:
+            messagebox.showwarning(
+                "オープン失敗",
+                f"フォルダ '{path}' を開けませんでした。ファイルマネージャが正しく設定されているか確認してください。",
+            )
 
     def execute_common(self, retry=False, resume=False):
         # 共通の実行＆監視フロー
@@ -549,9 +547,16 @@ class App(tk.Tk):
                 # 開くファイルを5件に制限
                 files_to_open = display_list[:5]
                 logger.info(f"先頭{len(files_to_open)}件のエラーファイルを開きます。")
+                opened_any = False
                 for fname in files_to_open:
-                    open_path = fname
-                    open_file_with_default_app(open_path)
+                    if open_file_with_default_app(fname):
+                        opened_any = True
+
+                if not opened_any and files_to_open:
+                    messagebox.showwarning(
+                        "オープン失敗",
+                        "ファイルのオープンに失敗しました。OSに紐づけられた標準のアプリケーションを確認してください。",
+                    )
             self.error_file_list = None  # メッセージ表示後にリセット
             return True  # エラーファイルがあったことを示す
         return False  # エラーファイルがなかったことを示す

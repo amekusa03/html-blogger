@@ -23,8 +23,8 @@ html_extensions = config["common"]["html_extensions"]
 
 xml_file = config["find_keyword"]["keywords_xml_file"]
 
-mast_keywords = None
-hit_keywords = None
+mast_keyword_map = None
+hit_keyword_map = None
 
 
 def run(result_queue):
@@ -54,26 +54,68 @@ def run(result_queue):
     logger.info(f"キーワード注入完了: {count}件")
 
 
+def _create_keyword_map(text, target_map):
+    """キーワードテキストを解析し、検索/登録マップに追加するヘルパー関数"""
+    if not text or not text.strip():
+        return
+
+    text = text.strip()
+
+    # `Python(パイソン,py)` の形式を `Python:パイソン,py` に正規化
+    text = re.sub(r"\(([^)]+)\)", r":\1", text)
+
+    if ":" in text:
+        parts = text.split(":", 1)
+        register_word = parts[0].strip()
+        aliases_str = parts[1]
+    else:
+        register_word = text
+        aliases_str = ""
+
+    # 登録ワード自体も検索対象に含める
+    search_words = [register_word]
+
+    # エイリアスをカンマ(全角/半角)で分割して追加
+    aliases = [
+        alias.strip() for alias in re.split(r"[,，]", aliases_str) if alias.strip()
+    ]
+    search_words.extend(aliases)
+
+    # 重複を削除しつつ順序を維持
+    unique_search_words = list(dict.fromkeys(search_words))
+
+    for search_word in unique_search_words:
+        if search_word:  # 空文字は登録しない
+            target_map[search_word] = register_word
+
+
 def load_keywords():
-    """XMLからキーワードを読み込む。"""
-    global mast_keywords
-    global hit_keywords
+    """XMLからキーワードを読み込み、検索/登録マップを作成する。"""
+    global mast_keyword_map
+    global hit_keyword_map
+
+    mast_keyword_map = {}
+    hit_keyword_map = {}
+
     try:
         if not Path(xml_file).exists():
             logger.error(f"{xml_file} が見つかりません。")
             return False
         tree = ET.parse(str(Path(xml_file)))
         root = tree.getroot()
-        mast_keywords = [
-            node.text.strip()
-            for node in root.find("Mastkeywords").findall("word")
-            if node.text and node.text.strip()
-        ]
-        hit_keywords = [
-            node.text.strip()
-            for node in root.find("Hitkeywords").findall("word")
-            if node.text and node.text.strip()
-        ]
+
+        # Mastkeywords
+        mast_node = root.find("Mastkeywords")
+        if mast_node is not None:
+            for node in mast_node.findall("word"):
+                _create_keyword_map(node.text, mast_keyword_map)
+
+        # Hitkeywords
+        hit_node = root.find("Hitkeywords")
+        if hit_node is not None:
+            for node in hit_node.findall("word"):
+                _create_keyword_map(node.text, hit_keyword_map)
+
     except Exception as e:
         logger.error(f"XML読み込みエラー: {e}", exc_info=True)
         return False
@@ -82,17 +124,17 @@ def load_keywords():
 
 def add_keywords_to_content(files):
     """HTMLコンテンツにキーワードを<search>タグで注入する。"""
-    global mast_keywords
-    global hit_keywords
+    global mast_keyword_map
+    global hit_keyword_map
 
-    if mast_keywords is None or hit_keywords is None:
+    if mast_keyword_map is None or hit_keyword_map is None:
         if not load_keywords():
             logger.warning(
                 "登録キーワード読み込みに失敗しました。キーワード注入をスキップします。"
             )
             return files
 
-    if not mast_keywords and not hit_keywords:
+    if not mast_keyword_map and not hit_keyword_map:
         logger.warning("登録キーワードが見つかりません。")
 
     html_content = files.read_text(encoding="utf-8", errors="ignore")
@@ -131,11 +173,15 @@ def add_keywords_to_content(files):
 
     # 2. キーワードをすべて集める
     all_keywords = []
-    all_keywords.extend(mast_keywords)  # 必須キーワード
+
+    # 必須キーワード (mast_keywords)
+    all_keywords.extend(list(mast_keyword_map.values()))
+
     clean_text = re.sub(r"<[^>]*?>", "", html_content)  # 本文からヒットキーワード
-    for h_kw in hit_keywords:
-        if h_kw in clean_text:
-            all_keywords.append(h_kw)
+    for search_word, register_word in hit_keyword_map.items():
+        if search_word in clean_text:
+            all_keywords.append(register_word)
+
     all_keywords.extend(current_keywords)  # 既存キーワード
     all_keywords.extend(body_keywords)  # 本文から抽出したキーワード
 

@@ -4,41 +4,43 @@ import os
 import subprocess
 import sys
 from datetime import datetime
+from logging import config as logging_config
 from logging import getLogger
 from pathlib import Path
 
 import json5
 
-with open("./data/log_config.json5", "r") as f:
-    log_conf = json5.load(f)
-
 # 初期設定ファイル読み込み
 # 使い方　config['SECTION']['KEY']
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-config_json_path = os.path.join(SCRIPT_DIR, "./data/config.json5")
-with open(config_json_path, "r", encoding="utf-8") as f:
+CONFIG_JSON_PATH = os.path.join(SCRIPT_DIR, "./data/config.json5")
+with open(CONFIG_JSON_PATH, "r", encoding="utf-8") as f:
     # JSON5ファイルを読み込んで辞書に変換
     config = json5.load(f)
 
 
 # 初期設定ファイル書き込み
 def save_config():
-    with open(config_json_path, "w", encoding="utf-8") as f:
+    """現在のconfigオブジェクトをファイルに保存する"""
+    with open(CONFIG_JSON_PATH, "w", encoding="utf-8") as f:
         # JSON5ファイルを書き込んで辞書に変換
-        json5.dump(config, f)
+        json5.dump(config, f, indent=4, quote_keys=True)
 
 
 # --- logging設定 ---
-# ファイル名をタイムスタンプで作成
-log_filename = os.path.join(
-    SCRIPT_DIR, "data/logs/{}.logs".format(datetime.now().strftime("%Y%m%d%H%M%S"))
-)
-# ログ保存先のディレクトリを作成（存在しない場合）
-os.makedirs(os.path.dirname(log_filename), exist_ok=True)
-log_conf["handlers"]["fileHandler"]["filename"] = log_filename
-# パラメータが設定されていればレベルをINFOからDEBUGに置換
-log_conf["handlers"]["fileHandler"]["level"] = "DEBUG"
-logging.config.dictConfig(log_conf)
+def setup_logging():
+    """ロギング設定を初期化する。アプリケーションのエントリーポイントで呼び出す。"""
+    log_config_path = os.path.join(SCRIPT_DIR, "./data/log_config.json5")
+    with open(log_config_path, "r", encoding="utf-8") as f:
+        log_conf = json5.load(f)
+
+    log_filename = os.path.join(
+        SCRIPT_DIR, "data/logs/{}.log".format(datetime.now().strftime("%Y%m%d_%H%M%S"))
+    )
+    os.makedirs(os.path.dirname(log_filename), exist_ok=True)
+    log_conf["handlers"]["fileHandler"]["filename"] = log_filename
+    logging_config.dictConfig(log_conf)
+
 
 # 共通関数
 logger = getLogger(__name__)
@@ -46,20 +48,35 @@ logger = getLogger(__name__)
 
 def open_file_with_default_app(filepath):
     """ファイルパスを受け取り、OSの標準アプリで開く関数"""
-    if sys.platform == "win32":  # Windows
-        os.startfile(filepath)
-    elif sys.platform == "darwin":  # macOS
-        subprocess.call(["open", filepath])
-    elif sys.platform.startswith("linux"):  # Linux
-        subprocess.call(["xdg-open", filepath])
-    else:
-        logger.error(f"未対応のOS: {sys.platform}")
+    filepath_str = str(filepath)
+    try:
+        if sys.platform == "win32":  # Windows
+            os.startfile(filepath_str)
+        elif sys.platform == "darwin":  # macOS
+            subprocess.run(["open", filepath_str], check=True)
+        elif sys.platform.startswith("linux"):  # Linux
+            subprocess.run(["xdg-open", filepath_str], check=True)
+        else:
+            logger.error(f"未対応のOS: {sys.platform}")
+            return False
+        return True
+    except FileNotFoundError:
+        logger.error(f"コマンドが見つかりません。'{filepath_str}' を開けませんでした。")
+        return False
+    except subprocess.CalledProcessError as e:
+        logger.error(f"ファイルを開けませんでした: {filepath_str} - {e}")
+        return False
+    except Exception as e:
+        logger.error(
+            f"予期せぬエラーでファイルを開けませんでした: {filepath_str} - {e}"
+        )
+        return False
 
 
 def open_keywords_app():
     """keywords.xml を標準アプリで開く"""
-    xml_path = os.path.abspath(config["find_keyword"]["keywords_xml_file"])
-    if os.path.exists(xml_path):
+    xml_path = Path(config["find_keyword"]["keywords_xml_file"]).resolve()
+    if xml_path.exists():
         open_file_with_default_app(xml_path)
     else:
         logger.error(f"{xml_path} が見つかりません。")
@@ -67,8 +84,8 @@ def open_keywords_app():
 
 def open_georss_file():
     """location.xml を標準アプリで開く"""
-    xml_path = os.path.abspath(config["find_location"]["location_xml_file"])
-    if os.path.exists(xml_path):
+    xml_path = Path(config["find_location"]["location_xml_file"]).resolve()
+    if xml_path.exists():
         open_file_with_default_app(xml_path)
     else:
         logger.error(f"{xml_path} が見つかりません。")
@@ -76,10 +93,10 @@ def open_georss_file():
 
 def open_config_file():
     """config.json5 を標準アプリで開く"""
-    if os.path.exists(config_json_path):
-        open_file_with_default_app(config_json_path)
+    if os.path.exists(CONFIG_JSON_PATH):
+        open_file_with_default_app(CONFIG_JSON_PATH)
     else:
-        logger.error(f"{config_json_path} が見つかりません。")
+        logger.error(f"{CONFIG_JSON_PATH} が見つかりません。")
 
 
 def open_folder(path):
@@ -98,57 +115,47 @@ def to_bool(value):
     return bool(value)
 
 
-serial = {
-    "hex": "0001",
-}
-
-serial_json_path = os.path.join(SCRIPT_DIR, "./data/serial.json5")
+SERIAL_JSON_PATH = os.path.join(SCRIPT_DIR, "./data/serial.json5")
 
 
 def load_serial():
-    with open(serial_json_path, "r", encoding="utf-8") as f:
-        # JSON5ファイルを読み込んで辞書に変換
-        serial = json5.load(f)
-    return serial
+    """シリアル番号ファイルを読み込む"""
+    try:
+        with open(SERIAL_JSON_PATH, "r", encoding="utf-8") as f:
+            return json5.load(f)
+    except (FileNotFoundError, json5.Json5DecodeError):
+        # ファイルがない、または不正な場合は初期値を返す
+        return {"hex": "0001"}
 
 
-def save_serial():
-    with open(serial_json_path, "w", encoding="utf-8") as f:
-        # JSON5ファイルを書き込んで辞書に変換
+def save_serial(serial):
+    """シリアル番号をファイルに保存する"""
+    with open(SERIAL_JSON_PATH, "w", encoding="utf-8") as f:
         json5.dump(serial, f)
-    return serial
-
-
-def _get_serial_counter():
-    """serialから現在のカウンター値を読み込む（16進4桁）"""
-    return load_serial()["hex"]
 
 
 def get_serial():
     """serialから現在のカウンター値を読み込む（16進4桁）"""
-    counter_hex = _get_serial_counter()
-    if counter_hex:
-        return counter_hex
-    else:
-        update_serial(reset=True)
-    counter_hex = _get_serial_counter()
-    return counter_hex
+    serial_data = load_serial()
+    return serial_data.get("hex", "0001")
 
 
 test_mode = to_bool(config["common"]["test_mode"])
 
 
 def update_serial(reset=False):
-    """次回用のカウンター値をserialに保存（16進4桁）"""
-    current_hex = load_serial()["hex"]
+    """
+    次回用のカウンター値をserial.json5に保存（16進4桁）。
+    test_modeがTrueの場合はカウンターをインクリメントしない。
+    """
+    serial_data = load_serial()
+    current_hex = serial_data.get("hex", "0000")
     counter = int(current_hex, 16)
-    if not test_mode:
+
+    if reset or counter >= 0xFFFF:
+        counter = 1
+    elif not test_mode:
         counter += 1
-    if counter > 0xFFFF or reset:
-        counter = 1  # 16進4桁を超えたら1にリセット
-    serial_data = {"hex": f"{counter:04x}"}
-    try:
-        with open(serial_json_path, "w", encoding="utf-8") as f:
-            json5.dump(serial_data, f)
-    except IOError as e:
-        logger.warning(f"シリアルの保存に失敗しました: {e}")
+
+    new_serial_data = {"hex": f"{counter:04x}"}
+    save_serial(new_serial_data)

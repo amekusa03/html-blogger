@@ -3,8 +3,8 @@
     <!-- 必ず追加するキーワード -->
     <Mastkeywords>
     </Mastkeywords>
-    <!-- 本文内にあれば追加するキーワード -->
+    <!-- 本文内にあれば追加するキーワード 登録ワード:検索ワード1,検索ワード2,... -->
     <Hitkeywords>
-        <word>アウトドア</word>
+        <word>アウトドア:outdoor,アウトドア活動</word>
     </Hitkeywords>
 </root>

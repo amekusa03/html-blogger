@@ -58,7 +58,7 @@
   mod_image: {
     input_dir: './data/work',           // 入力フォルダ
     output_dir: './data/work',          // 出力フォルダ
-    watermark_text: 'Test',            // 透かしテキスト
+    watermark_text: 'WaterMark',            // 透かしテキスト
   },
   // 画像アップロード設定
   upload_image: {
@@ -80,7 +80,7 @@
     upload_dir: './data/upload',         // アップロードフォルダ
     history_dir: './data/history',       // 履歴フォルダ
     blog_id: 1234567890123456789,   // ブログID
-    delay_seconds: 11.1,            // Blogger API標準値（制限　100/100 QPS? 推奨 1.5~2 QPS?）
+    delay_seconds: 1.1,            // Blogger API標準値（制限　100/100 QPS? 推奨 1.5~2 QPS?）
     max_posts_per_run: 40,          // 1回の実行で処理する最大ポスト数(API制限対 50 件/日?)
     max_retries: 3,                 // アップロードリトライ回数
   },
