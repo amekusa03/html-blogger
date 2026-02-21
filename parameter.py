@@ -1,10 +1,11 @@
 # coding: utf-8
-import logging.config
+"""parameter.py
+共通の定数や関数を定義するモジュール
+"""
 import os
 import subprocess
 import sys
 from datetime import datetime
-from logging import config as logging_config
 from logging import getLogger
 from pathlib import Path
 
@@ -22,24 +23,9 @@ with open(CONFIG_JSON_PATH, "r", encoding="utf-8") as f:
 # 初期設定ファイル書き込み
 def save_config():
     """現在のconfigオブジェクトをファイルに保存する"""
-    with open(CONFIG_JSON_PATH, "w", encoding="utf-8") as f:
+    with open(CONFIG_JSON_PATH, "w", encoding="utf-8") as file:
         # JSON5ファイルを書き込んで辞書に変換
-        json5.dump(config, f, indent=4, quote_keys=True)
-
-
-# --- logging設定 ---
-def setup_logging():
-    """ロギング設定を初期化する。アプリケーションのエントリーポイントで呼び出す。"""
-    log_config_path = os.path.join(SCRIPT_DIR, "./data/log_config.json5")
-    with open(log_config_path, "r", encoding="utf-8") as f:
-        log_conf = json5.load(f)
-
-    log_filename = os.path.join(
-        SCRIPT_DIR, "data/logs/{}.log".format(datetime.now().strftime("%Y%m%d_%H%M%S"))
-    )
-    os.makedirs(os.path.dirname(log_filename), exist_ok=True)
-    log_conf["handlers"]["fileHandler"]["filename"] = log_filename
-    logging_config.dictConfig(log_conf)
+        json5.dump(config, file, indent=4, quote_keys=True)
 
 
 # 共通関数
@@ -57,18 +43,23 @@ def open_file_with_default_app(filepath):
         elif sys.platform.startswith("linux"):  # Linux
             subprocess.run(["xdg-open", filepath_str], check=True)
         else:
-            logger.error(f"未対応のOS: {sys.platform}")
+            logger.error("未対応のOS: %s", sys.platform)
             return False
         return True
     except FileNotFoundError:
-        logger.error(f"コマンドが見つかりません。'{filepath_str}' を開けませんでした。")
+        logger.error(
+            "コマンドが見つかりません。'%s' を開けませんでした。", filepath_str
+        )
         return False
     except subprocess.CalledProcessError as e:
-        logger.error(f"ファイルを開けませんでした: {filepath_str} - {e}")
+        logger.error("ファイルを開けませんでした: %s - %s", filepath_str, e)
         return False
-    except Exception as e:
+    except OSError as e:
         logger.error(
-            f"予期せぬエラーでファイルを開けませんでした: {filepath_str} - {e}"
+            "予期せぬエラーでファイルを開けませんでした: %s - %s",
+            filepath_str,
+            e,
+            exc_info=True,
         )
         return False
 
@@ -79,7 +70,7 @@ def open_keywords_app():
     if xml_path.exists():
         open_file_with_default_app(xml_path)
     else:
-        logger.error(f"{xml_path} が見つかりません。")
+        logger.error("%s が見つかりません。", xml_path)
 
 
 def open_georss_file():
@@ -88,7 +79,7 @@ def open_georss_file():
     if xml_path.exists():
         open_file_with_default_app(xml_path)
     else:
-        logger.error(f"{xml_path} が見つかりません。")
+        logger.error("%s が見つかりません。", xml_path)
 
 
 def open_config_file():
@@ -96,7 +87,7 @@ def open_config_file():
     if os.path.exists(CONFIG_JSON_PATH):
         open_file_with_default_app(CONFIG_JSON_PATH)
     else:
-        logger.error(f"{CONFIG_JSON_PATH} が見つかりません。")
+        logger.error("%s が見つかりません。", CONFIG_JSON_PATH)
 
 
 def open_folder(path):
@@ -105,7 +96,7 @@ def open_folder(path):
     if os.path.exists(abs_path) and os.path.isdir(abs_path):
         open_file_with_default_app(abs_path)
     else:
-        logger.error(f"{abs_path} が見つかりません。")
+        logger.error("%s が見つかりません。", abs_path)
 
 
 def to_bool(value):
@@ -121,17 +112,17 @@ SERIAL_JSON_PATH = os.path.join(SCRIPT_DIR, "./data/serial.json5")
 def load_serial():
     """シリアル番号ファイルを読み込む"""
     try:
-        with open(SERIAL_JSON_PATH, "r", encoding="utf-8") as f:
-            return json5.load(f)
-    except (FileNotFoundError, json5.Json5DecodeError):
+        with open(SERIAL_JSON_PATH, "r", encoding="utf-8") as file:
+            return json5.load(file)
+    except (FileNotFoundError, ValueError):
         # ファイルがない、または不正な場合は初期値を返す
         return {"hex": "0001"}
 
 
 def save_serial(serial):
     """シリアル番号をファイルに保存する"""
-    with open(SERIAL_JSON_PATH, "w", encoding="utf-8") as f:
-        json5.dump(serial, f)
+    with open(SERIAL_JSON_PATH, "w", encoding="utf-8") as file:
+        json5.dump(serial, file, indent=4, quote_keys=True)
 
 
 def get_serial():

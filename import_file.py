@@ -1,22 +1,21 @@
 # -*- coding: utf-8 -*-
+"""import_file.py
+input_dirからファイルを検証してoutput_dirに移動する。
+画像はPILで開いて検証、HTMLはBeautifulSoupで解析して検証
+"""
 import logging
-import os
+import queue
 import shutil
 from datetime import datetime
-from logging import config, getLogger
 from pathlib import Path
 
 from bs4 import BeautifulSoup
-from json5 import load
 from PIL import Image
 
 from file_class import SmartFile
 from parameter import config, to_bool
 
-# logging設定
-with open("./data/log_config.json5", "r") as f:
-    logging.config.dictConfig(load(f))
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # --- 設定 ---
 backup_enabled = to_bool(config["import_file"]["backup"])
@@ -30,14 +29,15 @@ image_extensions = config["common"]["image_extensions"]
 html_extensions = config["common"]["html_extensions"]
 
 
-def run(result_queue):
-    logger.info(f"ファイル取り込み開始: {input_dir} -> {output_dir}")
+def run(queue_obj):
+    """input_dirからファイルを検証してoutput_dirに移動する。画像はPILで開いて検証、HTMLはBeautifulSoupで解析して検証"""
+    logger.info("ファイル取り込み開始: %s -> %s", input_dir, output_dir)
     # workフォルダをクリーンアップしてから処理を開始する
     shutil.rmtree(output_dir, ignore_errors=True)
 
     input_path = Path(input_dir)
     if not input_path.exists():
-        logger.warning(f"入力フォルダが見つかりません: {input_dir}")
+        logger.warning("入力フォルダが見つかりません: %s", input_dir)
         return True
 
     # input_dir 内のファイルを処理対象とする
@@ -48,9 +48,9 @@ def run(result_queue):
         return True
 
     for in_file in files_to_process:
-        logger.info(f"Importing: {in_file}")
+        logger.info("Importing: %s", in_file)
         imported_file = import_file(in_file)
-        result_queue.put(imported_file)
+        queue_obj.put(imported_file)
 
     return True
 
@@ -73,9 +73,9 @@ def import_file(in_file_path: Path):
                     img.verify()
                 smart_file.extensions = "image"
                 smart_file.status = "✓"
-            except Exception as e:
+            except (IOError, OSError) as e:
                 logger.warning(
-                    f"警告: 画像ファイルとして開けません: {in_file_path} - {e}"
+                    "警告: 画像ファイルとして開けません: %s - %s", in_file_path, e
                 )
                 smart_file.status = "✘"
                 smart_file.extensions = "other"
@@ -94,9 +94,9 @@ def import_file(in_file_path: Path):
                 BeautifulSoup(content, "html.parser")
                 smart_file.extensions = "html"
                 smart_file.status = "✓"
-            except Exception as e:
+            except (IOError, OSError, ValueError) as e:
                 logger.warning(
-                    f"警告: HTMLファイルとして解析できません: {in_file_path} - {e}"
+                    "警告: HTMLファイルとして解析できません: %s - %s", in_file_path, e
                 )
                 smart_file.status = "✘"
                 smart_file.extensions = "other"
@@ -105,7 +105,8 @@ def import_file(in_file_path: Path):
             smart_file.status = "✘"
             smart_file.extensions = "other"
             logger.warning(
-                f"警告: 対応していない拡張子のため取り込みスキップ: {smart_file}"
+                "警告: 対応していない拡張子のため取り込みスキップ: %s",
+                smart_file.disp_path,
             )
             return smart_file
 
@@ -118,14 +119,14 @@ def import_file(in_file_path: Path):
             target_backup_dir.mkdir(parents=True, exist_ok=True)
             backup_file_path = target_backup_dir / in_file_path.name
             shutil.copy2(in_file_path, backup_file_path)
-            logger.debug(f"バックアップ作成: {backup_file_path}")
+            logger.debug("バックアップ作成: %s", backup_file_path)
 
         # 2. 作業エリアにファイルを移動
         dest_path = Path(output_dir) / rel_path / in_file_path.name
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         moved_path_str = shutil.move(in_file_path, dest_path)
         moved_path = Path(moved_path_str)
-        logger.info(f"移動: {in_file_path} -> {moved_path}")
+        logger.info("移動: %s -> %s", in_file_path, moved_path)
 
         # 3. 移動元のフォルダが空になったら削除
         src_parent = in_file_path.parent
@@ -137,10 +138,10 @@ def import_file(in_file_path: Path):
                 and src_parent.resolve() != Path(input_dir).resolve()
             ):
                 src_parent.rmdir()
-                logger.info(f"空になったフォルダを削除しました: {src_parent}")
+                logger.info("空になったフォルダを削除しました: %s", src_parent)
         except OSError as e:
             logger.debug(
-                f"フォルダ削除失敗（空でない可能性があります）: {src_parent} - {e}"
+                "フォルダ削除失敗（空でない可能性があります）: %s - %s", src_parent, e
             )
 
         # 4. 移動後のパスで新しいSmartFileオブジェクトを作成して返す
@@ -150,16 +151,16 @@ def import_file(in_file_path: Path):
         final_smart_file.disp_path = smart_file.disp_path
         return final_smart_file
 
-    except Exception as e:
+    except (IOError, OSError) as e:
         smart_file.status = "✘"
         logger.error(
-            f"エラー: ファイル操作中にエラーが発生しました: {smart_file} - {e}",
+            "エラー: ファイル操作中にエラーが発生しました: %s - %s",
+            smart_file.disp_path,
+            e,
             exc_info=True,
         )
         return smart_file
 
-
-import queue
 
 # --- メイン処理 ---
 if __name__ == "__main__":
@@ -169,5 +170,5 @@ if __name__ == "__main__":
         run(result_queue)
     except KeyboardInterrupt:
         logger.info("処理が中断されました。")
-    except Exception as e:
-        logger.critical(f"予期せぬエラーが発生しました: {e}", exc_info=True)
+    except (OSError, IOError) as e:
+        logger.critical("予期せぬエラーが発生しました: %s", e, exc_info=True)

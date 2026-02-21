@@ -1,19 +1,17 @@
 # -*- coding: utf-8 -*-
+"""find_keyword.py
+HTMLファイルからキーワードを抽出し、<search>タグを追加するモジュール
+"""
 import logging
+import queue
 import re
 import xml.etree.ElementTree as ET
-from logging import config, getLogger
 from pathlib import Path
-
-from json5 import load
 
 from file_class import SmartFile
 from parameter import config
 
-# logging設定
-with open("./data/log_config.json5", "r") as f:
-    logging.config.dictConfig(load(f))
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # 入力元フォルダ
 input_dir = config["find_keyword"]["input_dir"].lstrip("./")
@@ -23,12 +21,50 @@ html_extensions = config["common"]["html_extensions"]
 
 xml_file = config["find_keyword"]["keywords_xml_file"]
 
-mast_keyword_map = None
-hit_keyword_map = None
+
+class KeywordManager:
+    """キーワードマップを管理するクラス"""
+
+    def __init__(self):
+        self.mast_keyword_map = None
+        self.hit_keyword_map = None
+
+    def load_keywords(self):
+        """XMLからキーワードを読み込み、検索/登録マップを作成する。"""
+        self.mast_keyword_map = {}
+        self.hit_keyword_map = {}
+
+        try:
+            if not Path(xml_file).exists():
+                logger.error("%s が見つかりません。", xml_file)
+                return False
+            tree = ET.parse(str(Path(xml_file)))
+            root = tree.getroot()
+
+            # Mastkeywords
+            mast_node = root.find("Mastkeywords")
+            if mast_node is not None:
+                for node in mast_node.findall("word"):
+                    _create_keyword_map(node.text, self.mast_keyword_map)
+
+            # Hitkeywords
+            hit_node = root.find("Hitkeywords")
+            if hit_node is not None:
+                for node in hit_node.findall("word"):
+                    _create_keyword_map(node.text, self.hit_keyword_map)
+
+        except (FileNotFoundError, ET.ParseError) as e:
+            logger.error("XML読み込みエラー: %s", e, exc_info=True)
+            return False
+        return True
 
 
-def run(result_queue):
-    logger.info(f"キーワード注入開始: {input_dir}")
+keyword_manager = KeywordManager()
+
+
+def run(queue_obj):
+    """HTMLファイルにキーワードを注入するメイン関数"""
+    logger.info("キーワード注入開始: %s -> %s", input_dir, output_dir)
     all_files = list(Path(input_dir).rglob("*"))
     count = 0
 
@@ -39,7 +75,7 @@ def run(result_queue):
                 src_file.status = "⏳"
                 src_file.extensions = "html"
                 src_file.disp_path = src_file.name
-                result_queue.put(src_file)
+                queue_obj.put(src_file)
 
     for path in all_files:
         src_file = SmartFile(path)
@@ -49,9 +85,9 @@ def run(result_queue):
                 src_file.status = "✔"
                 src_file.extensions = "html"
                 src_file.disp_path = src_file.name
-                result_queue.put(src_file)
+                queue_obj.put(src_file)
                 count += 1
-    logger.info(f"キーワード注入完了: {count}件")
+    logger.info("キーワード注入完了: %d件", count)
 
 
 def _create_keyword_map(text, target_map):
@@ -89,52 +125,19 @@ def _create_keyword_map(text, target_map):
             target_map[search_word] = register_word
 
 
-def load_keywords():
-    """XMLからキーワードを読み込み、検索/登録マップを作成する。"""
-    global mast_keyword_map
-    global hit_keyword_map
-
-    mast_keyword_map = {}
-    hit_keyword_map = {}
-
-    try:
-        if not Path(xml_file).exists():
-            logger.error(f"{xml_file} が見つかりません。")
-            return False
-        tree = ET.parse(str(Path(xml_file)))
-        root = tree.getroot()
-
-        # Mastkeywords
-        mast_node = root.find("Mastkeywords")
-        if mast_node is not None:
-            for node in mast_node.findall("word"):
-                _create_keyword_map(node.text, mast_keyword_map)
-
-        # Hitkeywords
-        hit_node = root.find("Hitkeywords")
-        if hit_node is not None:
-            for node in hit_node.findall("word"):
-                _create_keyword_map(node.text, hit_keyword_map)
-
-    except Exception as e:
-        logger.error(f"XML読み込みエラー: {e}", exc_info=True)
-        return False
-    return True
-
-
 def add_keywords_to_content(files):
     """HTMLコンテンツにキーワードを<search>タグで注入する。"""
-    global mast_keyword_map
-    global hit_keyword_map
-
-    if mast_keyword_map is None or hit_keyword_map is None:
-        if not load_keywords():
+    if (
+        keyword_manager.mast_keyword_map is None
+        or keyword_manager.hit_keyword_map is None
+    ):
+        if not keyword_manager.load_keywords():
             logger.warning(
                 "登録キーワード読み込みに失敗しました。キーワード注入をスキップします。"
             )
             return files
 
-    if not mast_keyword_map and not hit_keyword_map:
+    if not keyword_manager.mast_keyword_map and not keyword_manager.hit_keyword_map:
         logger.warning("登録キーワードが見つかりません。")
 
     html_content = files.read_text(encoding="utf-8", errors="ignore")
@@ -175,10 +178,10 @@ def add_keywords_to_content(files):
     all_keywords = []
 
     # 必須キーワード (mast_keywords)
-    all_keywords.extend(list(mast_keyword_map.values()))
+    all_keywords.extend(list(keyword_manager.mast_keyword_map.values()))
 
     clean_text = re.sub(r"<[^>]*?>", "", html_content)  # 本文からヒットキーワード
-    for search_word, register_word in hit_keyword_map.items():
+    for search_word, register_word in keyword_manager.hit_keyword_map.items():
         if search_word in clean_text:
             all_keywords.append(register_word)
 
@@ -196,7 +199,7 @@ def add_keywords_to_content(files):
     new_keywords_list = list(dict.fromkeys(cleaned_keywords))
 
     if new_keywords_list:
-        logger.debug(f"最終的なキーワードリスト: {new_keywords_list}")
+        logger.debug("最終的なキーワードリスト: %s", new_keywords_list)
 
         search_tag = "".join([f"<search>{kw}</search>" for kw in new_keywords_list])
         # 4. <head>内の<title>の後に挿入
@@ -219,13 +222,11 @@ def add_keywords_to_content(files):
         else:
             html_content = search_tag + "\n" + html_content
 
-    with open(files, "w", encoding="utf-8") as f:
-        f.write(html_content)
-    logger.info(f"キーワード追加: {files.name}")
+    with open(files, "w", encoding="utf-8") as file:
+        file.write(html_content)
+    logger.info("キーワード追加: %s", files.name)
     return files
 
-
-import queue
 
 # --- メイン処理 ---
 if __name__ == "__main__":
@@ -235,5 +236,5 @@ if __name__ == "__main__":
         run(result_queue)
     except KeyboardInterrupt:
         logger.info("処理が中断されました。")
-    except Exception as e:
-        logger.critical(f"予期せぬエラーが発生しました: {e}", exc_info=True)
+    except (OSError, IOError, ET.ParseError) as e:
+        logger.critical("予期せぬエラーが発生しました: %s", e, exc_info=True)

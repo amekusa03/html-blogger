@@ -12,43 +12,37 @@ import os
 import queue
 import re
 import shutil
-from logging import config, getLogger
 from pathlib import Path
-
-from json5 import load
 
 from file_class import SmartFile
 from parameter import config, get_serial, update_serial
 
-# logging設定
-with open("./data/log_config.json5", "r") as f:
-    logging.config.dictConfig(load(f))
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 # --- 設定 ---
 
 # 入力フォルダ
-source_dir = str(Path(config["serializer"]["input_dir"].lstrip("./")).resolve())
+input_dir = Path(config["serializer"]["input_dir"].lstrip("./")).resolve()
 # シリアライズフォルダ
-serialization_dir = config["serializer"]["serialization_dir"].lstrip("./")
+serialization_dir = Path(config["serializer"]["serialization_dir"].lstrip("./")).resolve()
 # 出力フォルダ
-output_dir = config["serializer"]["output_dir"].lstrip("./")
+output_dir = Path(config["serializer"]["output_dir"].lstrip("./")).resolve() 
 
 image_extensions = config["common"]["image_extensions"]
 html_extensions = config["common"]["html_extensions"]
 
 
-def run(result_queue):
-    """source_dir内のファイルをシリアライズしてserialization_dirに保存する"""
-    logger.info(f"シリアライズ処理開始: {source_dir}")
+def run(queue_obj):
+    """INPUT_DIR内のファイルをシリアライズしてSERIALIZATION_DIRに保存する"""
+    logger.info("シリアライズ処理開始: %s", input_dir)
     update_serial()  # シリアル番号更新
 
-    # 1. 作業用ディレクトリ(serialization_dir)の初期化
-    if Path(serialization_dir).exists():
+    # 1. 作業用ディレクトリ(SERIALIZATION_DIR)の初期化
+    if serialization_dir.exists():
         shutil.rmtree(serialization_dir)
-    Path(serialization_dir).mkdir(exist_ok=True)
+    serialization_dir.mkdir(exist_ok=True)
 
     # 2. ファイル処理
-    all_files = sorted(Path(source_dir).rglob("*"))
+    all_files = sorted(input_dir.rglob("*"))
 
     # シリアル番号プレフィックスを取得（全ファイルで共通）
     serial_prefix = get_serial()
@@ -61,11 +55,11 @@ def run(result_queue):
         try:
             processed_file = process_file(src_file, serial_prefix)
             if processed_file:
-                result_queue.put(processed_file)
-        except Exception as e:
-            logger.error(f"ファイル処理エラー: {path} - {e}", exc_info=True)
+                queue_obj.put(processed_file)
+        except (IOError, OSError) as e:
+            logger.error("ファイル処理エラー: %s - %s", path, e, exc_info=True)
             src_file.status = "✘"
-            result_queue.put(src_file)
+            queue_obj.put(src_file)
 
     # 3. 出力ディレクトリへの反映
     finalize_output(serialization_dir, output_dir)
@@ -75,9 +69,9 @@ def run(result_queue):
 def get_serialized_name(path, serial_prefix):
     """パスをフラットなシリアル名に変換する"""
     try:
-        relative = path.relative_to(source_dir)
+        relative = path.relative_to(input_dir)
     except ValueError:
-        # source_dir外のパスの場合（通常は発生しないはずだが安全策）
+        # input_dir外のパスの場合（通常は発生しないはずだが安全策）
         relative = Path(path.name)
 
     flat_name = "".join(relative.parts)
@@ -87,13 +81,13 @@ def get_serialized_name(path, serial_prefix):
 def process_file(src_file, serial_prefix):
     """個別のファイルを処理する"""
     new_name = get_serialized_name(src_file, serial_prefix)
-    dest_path = Path(serialization_dir) / new_name
+    dest_path = serialization_dir / new_name
 
     # SmartFile作成
     dest_smart_file = SmartFile(dest_path)
     # GUI連携用: 元の相対パスを保存
     try:
-        dest_smart_file.old_name = str(src_file.relative_to(source_dir))
+        dest_smart_file.old_name = str(src_file.relative_to(input_dir))
     except ValueError:
         dest_smart_file.old_name = src_file.name
 
@@ -110,7 +104,7 @@ def process_html(src_file, dest_smart_file, serial_prefix):
     try:
         content = src_file.read_text(encoding="utf-8")
     except UnicodeDecodeError:
-        logger.warning(f"エンコーディングエラー、スキップ: {src_file}")
+        logger.warning("エンコーディングエラー、スキップ: %s", src_file.name)
         dest_smart_file.status = "✘"
         return dest_smart_file
 
@@ -127,10 +121,10 @@ def process_html(src_file, dest_smart_file, serial_prefix):
         try:
             # リンク先の新しい名前を計算
             new_link_name = get_serialized_name(link_path, serial_prefix)
-            logger.debug(f"  Rewriting link: {original_src} -> {new_link_name}")
+            logger.debug("  Rewriting link: %s -> %s", original_src, new_link_name)
             return f'src="{new_link_name}"'
         except ValueError:
-            # source_dir 外へのリンクなどはそのままにする
+            # input_dir 外へのリンクなどはそのままにする
             return match.group(0)
 
     # imgタグのsrcを置換
@@ -140,7 +134,7 @@ def process_html(src_file, dest_smart_file, serial_prefix):
     dest_smart_file.extensions = "html"
     dest_smart_file.disp_path = dest_smart_file.name
     dest_smart_file.status = "✓"
-    logger.info(f"[HTML] {src_file.name} -> {dest_smart_file.name} (リンク更新済)")
+    logger.info("[HTML] %s -> %s (リンク更新済)", src_file.name, dest_smart_file.name)
 
     return dest_smart_file
 
@@ -152,7 +146,7 @@ def process_image(src_file, dest_smart_file):
     dest_smart_file.extensions = "image"
     dest_smart_file.disp_path = dest_smart_file.name
     dest_smart_file.status = "✓"
-    logger.info(f"[FILE] {src_file.name} -> {dest_smart_file.name}")
+    logger.info("[FILE] %s -> %s", src_file.name, dest_smart_file.name)
     return dest_smart_file
 
 
@@ -163,10 +157,14 @@ def finalize_output(src_dir, dest_dir):
 
     try:
         shutil.copytree(src_dir, dest_dir)
-        logger.info(f"コピー: {src_dir} -> {dest_dir}")
-    except Exception as e:
+        logger.info("コピー: %s -> %s", src_dir, dest_dir)
+    except (IOError, OSError) as e:
         logger.error(
-            f"エラー: ファイルのコピーに失敗しました: {src_dir} -> {dest_dir} ({e})"
+            "エラー: ファイルのコピーに失敗しました: %s -> %s (%s)",
+            src_dir,
+            dest_dir,
+            e,
+            exc_info=True,
         )
 
 
@@ -177,5 +175,5 @@ if __name__ == "__main__":
         run(result_queue)
     except KeyboardInterrupt:
         logger.info("処理が中断されました。")
-    except Exception as e:
-        logger.critical(f"予期せぬエラーが発生しました: {e}", exc_info=True)
+    except (IOError, OSError) as e:
+        logger.critical("予期せぬエラーが発生しました: %s", e, exc_info=True)

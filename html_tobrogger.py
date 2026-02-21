@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
+"""html_tobrogger.py
+HTML to Bloggerのメインアプリケーション。TkinterでGUIを構築して、main_process.pyの処理をバックグラウンドスレッドで実行する。
+ファイルのステータス管理、プロセスの進行状況表示、ログ表示、エラーファイルの管理などを行う。
+"""
 import logging
-import os
 import queue
-import subprocess
-import sys
 import threading
 import tkinter as tk
 import webbrowser
@@ -18,7 +19,6 @@ from parameter import (
     open_file_with_default_app,
     open_georss_file,
     open_keywords_app,
-    save_config,
 )
 
 # ロガーの設定
@@ -48,7 +48,7 @@ class TkLogHandler(logging.Handler):
                 self.text_widget.insert(tk.END, msg + "\n", tag)
                 self.text_widget.see(tk.END)
                 self.text_widget.configure(state="disabled")
-            except Exception:
+            except tk.TclError:
                 pass
 
         # Tkinterのメインスレッドで実行するためにafterを使用
@@ -56,6 +56,8 @@ class TkLogHandler(logging.Handler):
 
 
 class App(tk.Tk):
+    """HTML to Bloggerのメインアプリケーションクラス"""
+
     def __init__(self):
         super().__init__()
         self.title("Bloggers of that time...")
@@ -69,6 +71,9 @@ class App(tk.Tk):
         # ファイルステータス管理用
         self.html_status = {}
         self.image_status = {}
+        self.step_labels = {}
+        self.disp_process_list = {}
+        self.error_file_list = set()
 
         # GUI構築
         self.create_menu()
@@ -77,7 +82,8 @@ class App(tk.Tk):
         # ログ設定
         self.setup_logging()
 
-        # 初回リスト更新
+        # 手順初期化
+        self.process = ""
 
         # キューの初期化
         self.command_queue = queue.Queue()
@@ -90,9 +96,7 @@ class App(tk.Tk):
         self.after(100, self.poll_queue)
 
         # 初期設定
-        self.after(
-            200, lambda: self.initial_process(self.command_queue, self.result_queue)
-        )
+        self.after(200, self.initial_process)
 
     def _update_listbox(self, listbox, item_status, item_collection, smart_file):
         """リストボックスと対応する辞書を更新するヘルパー関数"""
@@ -123,6 +127,7 @@ class App(tk.Tk):
         try:
             while True:
                 msg_type = None
+                status_type = None
                 fname = None
                 # ファイルステータス更新
                 result = self.result_queue.get_nowait()
@@ -135,37 +140,28 @@ class App(tk.Tk):
                             self.html_listbox, status, self.html_status, fname
                         )
                         if result.iserror():
-                            if self.error_file_list is None:
-                                self.error_file_list = set()
                             self.error_file_list.add(fname)
-                            logger.warning(f"エラーファイル: {fname}")
+                            logger.warning("エラーファイル: %s", fname)
                     elif fname.extensions == "image":
                         # 画像ファイルのステータス更新
                         self._update_listbox(
                             self.image_listbox, status, self.image_status, fname
                         )
                         if result.iserror():
-                            if self.error_file_list is None:
-                                self.error_file_list = set()
                             self.error_file_list.add(fname)
-                            logger.warning(f"エラーファイル: {fname}")
+                            logger.warning("エラーファイル: %s", fname)
                     else:
                         # 不明なファイルタイプのステータス更新
-                        if self.error_file_list is None:
-                            self.error_file_list = set()
                         # 不明なファイルタイプのエラーファイルリストに追加
                         if fname not in self.error_file_list:
                             self.error_file_list.add(fname)
-                        logger.warning(f"不明なファイルタイプ: {fname}")
-                    logger.info(f"ファイルステータス更新: {fname} -> {status}")
+                        logger.warning("不明なファイルタイプ: %s", fname)
+                    logger.info("ファイルステータス更新: %s -> %s", fname, status)
                     continue
                 elif isinstance(result, type(main_process.process_def)):
                     # プロセスステータス更新
                     msg_type = result["key"]
                     status_type = result.get("status", "⌛")
-                if msg_type == "initial_process" and status_type == "✔":
-                    logger.info("初期処理が完了しました。")
-                    self.execute_common()
                 if msg_type == "check_resume":
                     if status_type == "♻":
                         logger.info("再開処理があります。")
@@ -176,25 +172,13 @@ class App(tk.Tk):
                         "ファイル取り込み",
                         f"開いたフォルダ\n{open_path}にHTMLの記事、画像を入れて下さい。",
                     )
-                if (
-                    msg_type == "check_files"
-                    or msg_type == "serialize_files"
-                    or msg_type == "clean_html"
-                    or msg_type == "find_keyword"
-                    or msg_type == "find_location"
-                    or msg_type == "find_date"
-                    or msg_type == "mod_image"
-                ):
-                    if status_type == "✔":
-                        # エラーファイルがあればリスト表示
-                        self.error_file_message()
                 if msg_type == "upload_image":
                     if status_type == "✔" or status_type == "🔁":
                         if status_type == "🔁":
                             logger.info("画像の再開処理があります。")
                             if messagebox.askyesno(
                                 "再アップロード",
-                                f"アップロードしていない画像があります。\n再度アップロードしますか？",
+                                "アップロードしていない画像があります。\n再度アップロードしますか？",
                             ):
                                 self.process = "upload_image"
                             else:
@@ -223,20 +207,20 @@ class App(tk.Tk):
                         if self.error_file_message():
                             if messagebox.askyesno(
                                 "リンク切れ画像",
-                                f"リンク切れの画像があります。\n再度画像アップロードしますか？",
+                                "リンク切れの画像があります。\n再度画像アップロードしますか？",
                             ):
                                 self.execute_common(retry=True)
                         else:
                             messagebox.showwarning(
                                 "リンク切れ画像",
-                                f"不定のリンク切れの画像があります。\n処理を続行します。",
+                                "不定のリンク切れの画像があります。\n処理を続行します。",
                             )
                 if msg_type == "upload_art":
                     if status_type == "🔁":
                         logger.info("記事の再開処理があります。")
                         if messagebox.askyesno(
                             "再アップロード",
-                            f"アップロードしていない記事があります。\n再度アップロードしますか？",
+                            "アップロードしていない記事があります。\n再度アップロードしますか？",
                         ):
                             self.process = "upload_art"
                             self.execute_common(resume=True)
@@ -247,18 +231,19 @@ class App(tk.Tk):
                         webbrowser.open(open_web)
                         messagebox.showinfo(
                             "記事アップロード",
-                            f"Bloggerの管理画面が開きます。\n投稿済みの記事を確認してください。",
+                            "Bloggerの管理画面が開きます。\n投稿済みの記事を確認してください。",
                         )
                     if result["status"] == "⏸️":
                         open_web = config["gui"]["blogger_url"]
                         webbrowser.open(open_web)
                         messagebox.showwarning(
                             "投稿制限",
-                            f"1回の投稿上限に達しました。\n日本時間17時以降に再度投稿してください。\n（BloggerのAPI使用時に投稿できる記事は実測値で45件でした） ",
+                            "1回の投稿上限に達しました。\n日本時間17時以降に再度投稿してください。"
+                            + "（BloggerのAPI使用時に投稿できる記事は実測値で45件でした） ",
                         )
                 if msg_type == "closing" and status_type == "✔":
                     messagebox.showinfo(
-                        "処理完了", f"すべての処理が完了しました。\nお疲れ様でした！"
+                        "処理完了", "すべての処理が完了しました。\nお疲れ様でした！"
                     )
                     logger.info("すべての処理が完了しました。")
                     self.execute_common()
@@ -291,22 +276,36 @@ class App(tk.Tk):
                     # プログレスバー初期化
                     total_steps = len(self.disp_process_list)
                     completed_count = 0
-                    for key in self.disp_process_list:
-                        if self.disp_process_list[key]["status"] == "✔":
+                    for _, status in self.disp_process_list.items():
+                        if status["status"] == "✔":
                             completed_count += 1
-                            logger.info(
-                                "{}処理が完了しました。".format(
-                                    self.disp_process_list[key]["name"]
-                                )
-                            )
+                            logger.info("%s処理が完了しました。", status["name"])
                     if total_steps > 0:
                         progress = (completed_count / total_steps) * 100
                         self.progress_var.set(progress)
                         self.status_label.config(text=f"{int(progress)}% 完了")
                     logger.info("プロセスステップを更新しました。")
 
-                # プロセス通知であればボタンを再度有効化
-                if self.disp_process_list and msg_type in self.disp_process_list:
+                # --- 自動遷移とボタン制御ロジック (process_defのautonextを参照) ---
+                if status_type == "✔":
+                    # 処理ステップ完了時に、警告/エラーファイルがあったかチェック
+                    has_error_files = self.error_file_message()
+
+                    # process_defから自動遷移するかどうかを取得 (resultはプロセス定義の辞書)
+                    should_autonext = result.get("autonext", False)
+
+                    if has_error_files:
+                        # 警告/エラーファイルがあった場合、ユーザー確認のため停止
+                        self.btn_check.configure(state="normal")
+                    elif should_autonext:
+                        # エラーがなく、自動遷移が有効な場合は次へ
+                        self.execute_common()
+                    else:
+                        # 手動ステップの場合は停止
+                        self.btn_check.configure(state="normal")
+
+                elif status_type in ["⚠", "⏸️", "🔁", "✖"]:
+                    # 警告、一時停止、再開、エラー時はユーザー判断のためボタンを有効化
                     self.btn_check.configure(state="normal")
 
         except queue.Empty:
@@ -315,6 +314,7 @@ class App(tk.Tk):
             self.after(100, self.poll_queue)
 
     def create_menu(self):
+        """メニューバーの作成"""
         menubar = tk.Menu(self)
         self.config(menu=menubar)
 
@@ -340,10 +340,8 @@ class App(tk.Tk):
         help_menu.add_separator()
         help_menu.add_command(label="バージョン情報", command=self.show_about)
 
-    def show_under_construction(self):
-        messagebox.showinfo("作成中", "この機能は現在開発中です。")
-
     def create_widgets(self):
+        """ウィジェットの作成"""
         # メインフレーム
         main_frame = ttk.Frame(self, padding=10)
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -456,7 +454,7 @@ class App(tk.Tk):
         self.btn_check.pack(fill=tk.X, ipady=10)
 
     def setup_logging(self):
-        # 既存のハンドラをクリア
+        """既存のハンドラをクリア"""
         root_logger = logging.getLogger()
         for h in root_logger.handlers[:]:
             root_logger.removeHandler(h)
@@ -470,7 +468,7 @@ class App(tk.Tk):
         )
         root_logger.addHandler(handler)
 
-    def initial_process(self, command_queue, result_queue):
+    def initial_process(self):
         """GUIを初期状態にリセットする"""
         self.html_status = {}
         self.image_status = {}
@@ -478,25 +476,22 @@ class App(tk.Tk):
         self.image_listbox.delete(0, tk.END)
         self.progress_var.set(0)
         self.status_label.config(text="待機中...")
-        self.step_labels = {}
-        self.disp_process_list = {}
-        self.error_file_list = None
+        self.step_labels.clear()
+        self.disp_process_list.clear()
+        self.error_file_list.clear()
         logger.info("-" * 30)
 
         self.process = list(main_process.process_def.keys())[0]  # "initial_process"
         self.command_queue.put(self.process)
 
     def open_folder_action(self, path_str):
+        """指定されたパスのフォルダを開く。存在しない場合は作成してから開く"""
         path = Path(path_str)
         if not path.exists():
-            try:
-                path.mkdir(parents=True, exist_ok=True)
-            except Exception as e:
-                logger.error(f"フォルダ作成エラー: {e}")
-                return
+            path.mkdir(parents=True, exist_ok=True)
 
         if open_file_with_default_app(path):
-            logger.info(f"フォルダを開きました: {path}")
+            logger.info("フォルダを開きました: %s", path)
         else:
             messagebox.showwarning(
                 "オープン失敗",
@@ -504,7 +499,7 @@ class App(tk.Tk):
             )
 
     def execute_common(self, retry=False, resume=False):
-        # 共通の実行＆監視フロー
+        """共通の実行＆監視フロー"""
         if (
             retry
             and self.process in main_process.process_def
@@ -523,6 +518,7 @@ class App(tk.Tk):
         self.command_queue.put(self.process)
 
     def on_actions_row_click(self):
+        """アクションボタンがクリックされたときの処理"""
         # 処理中はボタンを無効化
         self.btn_check.configure(state="disabled")
         # 処理開始
@@ -530,6 +526,7 @@ class App(tk.Tk):
         logger.info("処理を開始しました。")
 
     def error_file_message(self):
+        """エラーファイルがある場合にメッセージを表示し、確認するかどうかをユーザーに尋ねる"""
         if self.error_file_list:
             # 表示するファイル数を制限（最大10件）
             display_list = list(self.error_file_list)
@@ -546,7 +543,7 @@ class App(tk.Tk):
             ):
                 # 開くファイルを5件に制限
                 files_to_open = display_list[:5]
-                logger.info(f"先頭{len(files_to_open)}件のエラーファイルを開きます。")
+                logger.info("先頭%d件のエラーファイルを開きます。", len(files_to_open))
                 opened_any = False
                 for fname in files_to_open:
                     if open_file_with_default_app(fname):
@@ -557,7 +554,7 @@ class App(tk.Tk):
                         "オープン失敗",
                         "ファイルのオープンに失敗しました。OSに紐づけられた標準のアプリケーションを確認してください。",
                     )
-            self.error_file_list = None  # メッセージ表示後にリセット
+            self.error_file_list.clear()  # メッセージ表示後にリセット
             return True  # エラーファイルがあったことを示す
         return False  # エラーファイルがなかったことを示す
 
@@ -608,10 +605,11 @@ class App(tk.Tk):
             """
             with open(path, "w", encoding="utf-8") as f:
                 f.write(content.strip())
-        except Exception as e:
-            logger.error(f"ヘルプ生成失敗: {e}")
+        except (OSError, IOError) as e:
+            logger.error("ヘルプ生成失敗: %s", e)
 
     def show_about(self):
+        """バージョン情報を表示する"""
         messagebox.showinfo(
             "バージョン情報",
             "HTML to Blogger\nVersion: 1.0.0\n\nMap Data © OpenStreetMap contributors",

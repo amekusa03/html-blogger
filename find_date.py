@@ -1,21 +1,17 @@
 # -*- coding: utf-8 -*-
+"""HTMLファイルから日付を抽出し、<time datetime="YYYY-MM-DD"></time> タグを追加するモジュール"""
 import calendar
 import logging
 import os
+import queue
 import re
 import unicodedata
-from logging import config, getLogger
 from pathlib import Path
 
-from json5 import load
-
-from file_class import SmartFile
+import file_class
 from parameter import config
 
-# logging設定
-with open("./data/log_config.json5", "r") as f:
-    logging.config.dictConfig(load(f))
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # --- 設定 ---
 
@@ -174,25 +170,25 @@ def extract_date_from_html(html_text):
 
 def add_date_to_html(html_path):
     """HTMLファイルに日付情報を追加する"""
-    try:
+    try:  # (path, has_warning)
         # ファイル読み込み（複数エンコーディング対応）
         content = None
         with open(
             html_path,
             "r",
             encoding="utf-8",
-        ) as f:
-            content = f.read()
+        ) as file:
+            content = file.read()
 
         if not content:
-            logger.error(f"失敗(文字コード不明): {html_path.name}")
-            return False
+            logger.error("失敗(文字コード不明): %s", html_path.name)
+            return None, True
 
         # 日付を抽出
         extracted_date = extract_date_from_html(content)
 
         if extracted_date:
-            logger.info(f"日付が見つかりました: {extracted_date}")
+            logger.info("日付が見つかりました: %s", extracted_date)
 
             # 既存の<time>タグがあれば削除（重複防止）
             content = re.sub(
@@ -214,27 +210,29 @@ def add_date_to_html(html_path):
             else:
                 # <title>がない場合は先頭に追加
                 logger.warning(
-                    "<title>タグが見つかりません。ファイル先頭に追加します。: %s", html_path.name
+                    "<title>タグが見つかりません。ファイル先頭に追加します。: %s",
+                    html_path.name,
                 )
                 content = time_tag + content
 
             # ファイル書き込み
-            with open(html_path, "w", encoding="utf-8") as f:
-                f.write(content)
+            with open(html_path, "w", encoding="utf-8") as file:
+                file.write(content)
 
-            return html_path
+            return html_path, False
         else:
             logger.warning("日付が見つかりません: %s", html_path.name)
-            return html_path  # エラーではないので継続
+            return html_path, True  # エラーではないので継続
 
-    except Exception as e:
-        logger.error(f"エラー: {html_path.name} - {e}", exc_info=True)
-        return False
+    except (IOError, OSError, ValueError, TypeError) as e:
+        logger.error("エラー: %s - %s", html_path.name, e, exc_info=True)
+        return None, True
 
 
-def run(result_queue):
+def run(queue_obj):
+    """日付追加処理の実行"""
     if not Path(input_dir).exists():
-        logger.error(f"{input_dir} が見つかりません")
+        logger.error("%s が見つかりません", input_dir)
         return False
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -244,16 +242,16 @@ def run(result_queue):
             if filename.lower().endswith(tuple(html_extensions)):
                 src_path = Path(root) / filename
                 if src_path:
-                    files = SmartFile(src_path)
-                    files.status = "⏳"
-                    files.extensions = "html"
-                    files.disp_path = files.name
-                    result_queue.put(files)
+                    smart_file = file_class.SmartFile(src_path)
+                    smart_file.status = "⏳"
+                    smart_file.extensions = "html"
+                    smart_file.disp_path = smart_file.name
+                    queue_obj.put(smart_file)
                 else:
                     # エラー時はスキップ（ログはadd_date_to_html内で出力済み）
                     pass
     processed_count = 0
-    logger.info(f"--- 日付追加処理を開始します (対象フォルダ: {input_dir}) ---")
+    logger.info("--- 日付追加処理を開始します (対象フォルダ: %s) ---", input_dir)
 
     for root, dirs, files in os.walk(str(input_dir)):
         for filename in files:
@@ -261,23 +259,24 @@ def run(result_queue):
                 src_path = Path(root) / filename
                 processed_count += 1
 
-                logger.info(f"[{processed_count}] {src_path.relative_to(input_dir)}")
-                result_path = add_date_to_html(SmartFile(src_path))
+                logger.info("[%d] %s", processed_count, src_path.relative_to(input_dir))
+                result_path, has_warning = add_date_to_html(
+                    file_class.SmartFile(src_path)
+                )
                 if result_path:
-                    files = SmartFile(result_path)
-                    files.status = "✔"
-                    files.extensions = "html"
-                    files.disp_path = files.name
-                    result_queue.put(files)
+                    smart_file = file_class.SmartFile(result_path)
+                    smart_file.status = "⚠" if has_warning else "✔"
+                    smart_file.extensions = "html"
+                    smart_file.disp_path = smart_file.name
+                    queue_obj.put(smart_file)
                 else:
-                    # エラー時はスキップ（ログはadd_date_to_html内で出力済み）
-                    pass
+                    smart_file = file_class.SmartFile(src_path)
+                    smart_file.status = "✖"
+                    queue_obj.put(smart_file)
     logger.info("-" * 30)
     logger.info("【処理完了】")
-    logger.info(f"処理したHTML: {processed_count} 本")
+    logger.info("処理したHTML: %d 本", processed_count)
 
-
-import queue
 
 # --- メイン処理 ---
 if __name__ == "__main__":
@@ -287,5 +286,5 @@ if __name__ == "__main__":
         run(result_queue)
     except KeyboardInterrupt:
         logger.info("処理が中断されました。")
-    except Exception as e:
-        logger.critical(f"予期せぬエラーが発生しました: {e}", exc_info=True)
+    except (IOError, OSError, ValueError, TypeError, RuntimeError) as e:
+        logger.critical("予期せぬエラーが発生しました: %s", e, exc_info=True)

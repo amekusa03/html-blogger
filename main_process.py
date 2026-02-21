@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
-import copy
+"""main_process.py
+メインプロセスの管理モジュール
+"""
 import logging
+import logging.config
 import queue
 import threading
 from logging import getLogger
@@ -19,18 +22,15 @@ import mod_image
 import serial_file
 import upload_art
 import upload_image
-from parameter import config
-
-# from check_file import run as check_file_run, input_dir
-
 
 # logging設定
-with open("./data/log_config.json5", "r") as f:
+with open("./data/log_config.json5", "r", encoding="utf-8") as f:
     logging.config.dictConfig(load(f))
 logger = getLogger(__name__)
 
 
 def main_process(command_queue, result_queue):
+    """コマンドキューから処理コマンドを受け取り、対応する処理を実行して結果キューにステータスを送る"""
     while True:
         try:
             command = command_queue.get(timeout=1)  # Wait for data
@@ -40,19 +40,19 @@ def main_process(command_queue, result_queue):
             if command == "initial_process":
                 # ここで初期処理を行う（処理一覧送信など）
                 logger.info(process_def[command]["name"])
-                for key in process_def.keys():  # GUIに処理一覧を送る
-                    if key == "initial_process":  # mmemo queueの中も参照渡し
-                        process_def[key]["status"] = "✔"
+                for key, value in process_def.items():  # GUIに処理一覧を送る
+                    if key == "initial_process":
+                        value["status"] = "✔"
                     else:
-                        process_def[key]["status"] = "⌛"
-                    result_queue.put(process_def[key])
+                        value["status"] = "⌛"
+                    result_queue.put(value)
             if command == "check_resume":
                 # ここで再開チェックを行う
                 logger.info(process_def[command]["name"])
                 resume = check_resume()
                 if not resume:
                     process_def[command]["status"] = "✔"
-                else:                    
+                else:
                     process_def[command]["status"] = "♻"
                     result_queue.put(resume)
                 result_queue.put(process_def[command])
@@ -115,11 +115,13 @@ def main_process(command_queue, result_queue):
                 if result is False:
                     process_def[command]["status"] = "✖"
                     # エラー時は処理を中断（必要に応じてGUIへエラー通知を送る）
-                    logger.error("HTMLリンク設定でエラーが発生しました。処理を中断します。")
+                    logger.error(
+                        "HTMLリンク設定でエラーが発生しました。処理を中断します。"
+                    )
                 # リンクできなかった画像がある場合の判定
                 if isinstance(result, list):
                     process_def[command]["status"] = "⚠"
-                    logger.warning(f"リンク切れ画像があります: {len(result)}件")
+                    logger.warning("リンク切れ画像があります: %d件", len(result))
                 else:
                     process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])  # GUIのみ
@@ -129,10 +131,12 @@ def main_process(command_queue, result_queue):
                 if result is False:
                     process_def[command]["status"] = "✖"
                     # エラー時は処理を中断（必要に応じてGUIへエラー通知を送る）
-                    logger.error("記事アップロードでエラーが発生しました。処理を中断します。")
+                    logger.error(
+                        "記事アップロードでエラーが発生しました。処理を中断します。"
+                    )
                 if isinstance(result, list):
                     process_def[command]["status"] = "⏸️"
-                    logger.warning(f"投稿制限に達した記事があります: {len(result)}件")
+                    logger.warning("投稿制限に達した記事があります: %d件", len(result))
                 else:
                     process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])
@@ -147,17 +151,17 @@ def main_process(command_queue, result_queue):
             # result_queue.put(result)
         except queue.Empty:
             continue
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             result_queue.put(f"Error processing data: {e}")
-            logger.error(f"エラー: プロセスエラー: {e}")
+            logger.error("エラー: プロセスエラー: %s", e, exc_info=True)
 
 
 def check_resume():
     """再開チェック"""
-    if upload_image.is_resume():
+    if "upload_image" in process_def and upload_image.is_resume():
         process_def["upload_image"]["status"] = "🔁"
         return process_def["upload_image"]
-    if upload_art.is_resume():
+    if "upload_art" in process_def and upload_art.is_resume():
         process_def["upload_art"]["status"] = "🔁"
         return process_def["upload_art"]
     return None
@@ -177,6 +181,7 @@ process_def = {
         "name": "初期処理",
         "status": "⌛",
         "nextprocess": "check_resume",
+        "autonext": True,
     },
     "check_resume": {
         "key": "check_resume",
@@ -185,54 +190,63 @@ process_def = {
         "nextprocess": "import_files",
         "resumeimageprocess": "upload_image",
         "resumeartprocess": "upload_art",
+        "autonext": False,
     },
     "import_files": {
         "key": "import_files",
         "name": "ファイル取り込み",
         "status": "⌛",
         "nextprocess": "check_files",
+        "autonext": False,
     },
     "check_files": {
         "key": "check_files",
         "name": "ファイルチェック",
         "status": "⌛",
         "nextprocess": "serialize_files",
+        "autonext": True,
     },
     "serialize_files": {
         "key": "serialize_files",
         "name": "フォルダ除去、シリアル追加",
         "status": "⌛",
         "nextprocess": "clean_html",
+        "autonext": True,
     },
     "clean_html": {
         "key": "clean_html",
         "name": "タグ除去・メタデータ抽出",
         "status": "⌛",
         "nextprocess": "find_keyword",
+        "autonext": True,
     },
     "find_keyword": {
         "key": "find_keyword",
         "name": "キーワード自動抽出・注入",
         "status": "⌛",
         "nextprocess": "find_location",
+        "autonext": True,
     },
     "find_location": {
         "key": "find_location",
         "name": "地理タグ自動付与",
         "status": "⌛",
         "nextprocess": "find_date",
+        "autonext": True,
     },
     "find_date": {
         "key": "find_date",
         "name": "日付付与",
         "status": "⌛",
         "nextprocess": "mod_image",
+        "autonext": True,
     },
     "mod_image": {
         "key": "mod_image",
         "name": "画像編集・最適化",
         "status": "⌛",
         "nextprocess": "upload_image",
+        "autonext": True,
     },
     "upload_image": {
         "key": "upload_image",
@@ -240,12 +254,14 @@ process_def = {
         "status": "⌛",
         "nextprocess": "import_media_manager",
         "resumeprocess": "upload_image",
+        "autonext": False,
     },
     "import_media_manager": {
         "key": "import_media_manager",
         "name": "メディアマネージャーダウンロード",
         "status": "⌛",
         "nextprocess": "link_html",
+        "autonext": False,
     },
     "link_html": {
         "key": "link_html",
@@ -253,6 +269,7 @@ process_def = {
         "status": "⌛",
         "nextprocess": "upload_art",
         "retryprocess": "upload_image",
+        "autonext": True,
     },
     "upload_art": {
         "key": "upload_art",
@@ -261,11 +278,13 @@ process_def = {
         "nextprocess": "closing",
         "retryprocess": "upload_art",
         "resumeprocess": "upload_art",
+        "autonext": True,
     },
     "closing": {
         "key": "closing",
         "name": "終了",
         "status": "⌛",
         "nextprocess": "import_files",
+        "autonext": False,
     },
 }

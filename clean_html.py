@@ -1,19 +1,18 @@
 # -*- coding: utf-8 -*-
+"""clean_html.py
+HTMLファイルをブログ用にクリーンアップするモジュール
+"""
 import logging
+import queue
 import re
-from logging import config, getLogger
 from pathlib import Path
 
 from bs4 import BeautifulSoup, Comment
-from json5 import load
 
 from file_class import SmartFile
 from parameter import config
 
-# logging設定
-with open("./data/log_config.json5", "r") as f:
-    logging.config.dictConfig(load(f))
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 # --- 設定 ---
 # 入力元フォルダ
 input_dir = config["clean_html"]["input_dir"].lstrip("./")
@@ -60,8 +59,9 @@ def resize_logic(w, h):
     return w, h
 
 
-def run(result_queue):
-    logger.info(f"HTMLクリーンアップ開始: {input_dir}")
+def run(queue_obj):
+    """HTMLクリーンアップのメイン処理"""
+    logger.info("HTMLクリーンアップ開始: %s -> %s", input_dir, output_dir)
     all_files = list(Path(input_dir).rglob("*"))
     count = 0
 
@@ -72,7 +72,7 @@ def run(result_queue):
                 src_file.status = "⏳"
                 src_file.extensions = "html"
                 src_file.disp_path = src_file.name
-                result_queue.put(src_file)
+                queue_obj.put(src_file)
 
     for path in all_files:
         src_file = SmartFile(path)
@@ -82,9 +82,9 @@ def run(result_queue):
                 src_file.status = "✔"
                 src_file.extensions = "html"
                 src_file.disp_path = src_file.name
-                result_queue.put(src_file)
+                queue_obj.put(src_file)
                 count += 1
-    logger.info(f"HTMLクリーンアップ完了: {count}件")
+    logger.info("HTMLクリーンアップ完了: %d件", count)
 
 
 def clean_html_for_blogger(files):
@@ -95,7 +95,7 @@ def clean_html_for_blogger(files):
         try:
             html_text = files.read_text(encoding=encoding, errors="ignore")
             break
-        except:
+        except UnicodeDecodeError:
             continue
 
     # 1. 改行とタブを一旦削除（後で<br>に基づいて再整理するため）
@@ -198,7 +198,23 @@ def clean_html_for_blogger(files):
         height = img.get("height")
         if width is not None and height is not None:
             # 縦横がある場合調整
-            img["width"], img["height"] = resize_logic(int(width), int(height))
+            try:
+                img["width"], img["height"] = resize_logic(int(width), int(height))
+            except ValueError:
+                # リカバリ: 属性がつながっている場合 (例: 452src="...") 数字部分のみ抽出
+                w_match = re.match(r"^(\d+)", str(width))
+                h_match = re.match(r"^(\d+)", str(height))
+                if w_match and h_match:
+                    img["width"], img["height"] = resize_logic(
+                        int(w_match.group(1)), int(h_match.group(1))
+                    )
+                else:
+                    logger.warning(
+                        "画像サイズが数値でないためリサイズをスキップ: src=%s, w=%s, h=%s",
+                        img.get("src"),
+                        width,
+                        height,
+                    )
         # imgをdivでラップし、captionを追加
         img.wrap(div_wrapper)
         div_wrapper.append(caption)
@@ -282,11 +298,9 @@ def clean_html_for_blogger(files):
     html_text = str(soup_final)
 
     files.write_text(html_text, encoding="utf-8")
-    logger.info(f"クリーンアップ完了: {files.name}")
+    logger.info("クリーンアップ完了: %s", files.name)
     return files
 
-
-import queue
 
 # --- メイン処理 ---
 if __name__ == "__main__":
@@ -296,5 +310,5 @@ if __name__ == "__main__":
         run(result_queue)
     except KeyboardInterrupt:
         logger.info("処理が中断されました。")
-    except Exception as e:
-        logger.critical(f"予期せぬエラーが発生しました: {e}", exc_info=True)
+    except (IOError, OSError, ValueError, TypeError, RuntimeError) as e:
+        logger.critical("予期せぬエラーが発生しました: %s", e, exc_info=True)

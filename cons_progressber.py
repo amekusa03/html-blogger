@@ -19,9 +19,10 @@ class ProgressBar:
         self.print_progress(0)
 
     def print_progress(self, iteration):
+        """進捗を表示する"""
         self.current = iteration
         percent = (
-            ("{0:.1f}").format(100 * (iteration / float(self.total)))
+            ("0:.1fm",100 * (iteration / float(self.total)))
             if self.total > 0
             else "100.0"
         )
@@ -30,9 +31,9 @@ class ProgressBar:
             if self.total > 0
             else self.length
         )
-        bar = "█" * filled_length + "-" * (self.length - filled_length)
+        propertybar = "█" * filled_length + "-" * (self.length - filled_length)
         sys.stdout.write(
-            f"\r{self.prefix} |{bar}| {percent}% ({iteration}/{self.total})"
+            f"\r{self.prefix} |{propertybar}| {percent}% ({iteration}/{self.total})"
         )
         sys.stdout.flush()
         if iteration == self.total:

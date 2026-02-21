@@ -113,7 +113,7 @@ APIとサービス → 認証情報
 
 ```
 htmltobrogger/
-├─ html-tobrogger.py
+├─ html_tobrogger.py
 ├─ data ┬ credentials.json  ← ここに配置
 │　　　　├backup
 │　　　　├histroy

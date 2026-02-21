@@ -388,7 +388,7 @@ rm token.pickle
 Ctrl+C
 
 # アプリケーション再起動
-python html-tobrogger.py
+python html_tobrogger.py
 ```
 
 ---
@@ -402,7 +402,7 @@ python html-tobrogger.py
 **Linux/Mac**:
 ```bash
 export LANG=ja_JP.UTF-8
-python html-tobrogger.py
+python html_tobrogger.py
 ```
 
 **Windows (PowerShell)**:
@@ -462,7 +462,7 @@ logger.error(f"エラー: {error}")
 ### ターミナル出力をファイルに保存
 
 ```bash
-python html-tobrogger.py > debug.log 2>&1
+python html_tobrogger.py > debug.log 2>&1
 ```
 
 ### XML を検証

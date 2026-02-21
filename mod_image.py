@@ -4,21 +4,16 @@ html_preparer.py
 serializationフォルダからHTMLファイルのみをready_uploadにコピー
 （カウンター式ネーミング済み）
 """
-
 import logging
-from logging import config, getLogger
+import queue
 from pathlib import Path
 
-from json5 import load
 from PIL import Image, ImageDraw, ImageFont
 
 from file_class import SmartFile
 from parameter import config
 
-# logging設定
-with open("./data/log_config.json5", "r") as f:
-    logging.config.dictConfig(load(f))
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 # --- 設定 ---
 
 # --- 設定 ---
@@ -29,8 +24,9 @@ output_dir = config["mod_image"]["output_dir"]
 image_extensions = config["common"]["image_extensions"]
 
 
-def run(result_queue):
-    logger.info(f"画像編集開始: {input_dir}")
+def run(queue_obj):
+    """画像編集開始: 入力フォルダ: %s", input_dir"""
+    logger.info("画像編集開始: 入力フォルダ: %s", input_dir)
     all_files = list(Path(input_dir).rglob("*"))
     count = 0
 
@@ -42,17 +38,17 @@ def run(result_queue):
                 src_file.status = "✔"
                 src_file.extensions = "image"
                 src_file.disp_path = src_file.name
-                result_queue.put(src_file)
+                queue_obj.put(src_file)
                 count += 1
-    logger.info(f"画像編集完了: {count}件")
+    logger.info("画像編集完了: %d件", count)
 
 
 def image_edit(files):
     """画像を開き、EXIFを除去し、右下に透かしテキストを追加して保存する。アニメーションGIF対応。"""
     try:
         image = Image.open(Path(files))
-    except Exception as e:
-        logger.warning(f"画像読み込みエラー: {files} - {e}")
+    except (IOError, OSError) as e:
+        logger.warning("画像読み込みエラー: %s - %s", files, e)
         files.status = "✘"
         return files
     watermark_text = config["mod_image"]["watermark_text"]
@@ -72,7 +68,7 @@ def image_edit(files):
             frame = image.convert("RGBA")
             if watermark_text:
                 frame = _add_watermark_to_frame(frame, font, watermark_text, pos)
-            frames.append(frame.convert("P", palette=Image.ADAPTIVE))
+            frames.append(frame.convert("P"))
             durations.append(image.info.get("duration", 100))
 
         loop = image.info.get("loop", 0)
@@ -89,13 +85,13 @@ def image_edit(files):
         if watermark_text:
             image = _add_watermark_to_frame(image, font, watermark_text, pos)
         if files.suffix.lower() == ".gif":
-            image = image.convert("P", palette=Image.ADAPTIVE)
+            image = image.convert("P")
             image.save(Path(files), optimize=True)
         else:
             if files.suffix.lower() in (".jpg", ".jpeg"):
                 image = image.convert("RGB")
             image.save(Path(files), quality=90)
-    logger.info(f"画像処理完了: {files.name}")
+    logger.info("画像処理完了: %s", files.name)
     return files
 
 
@@ -151,8 +147,6 @@ def _prepare_watermark_params(image, text):
     return font, pos
 
 
-import queue
-
 # --- メイン処理 ---
 if __name__ == "__main__":
 
@@ -161,5 +155,5 @@ if __name__ == "__main__":
         run(result_queue)
     except KeyboardInterrupt:
         logger.info("処理が中断されました。")
-    except Exception as e:
-        logger.critical(f"予期せぬエラーが発生しました: {e}", exc_info=True)
+    except (OSError, IOError) as e:
+        logger.critical("予期せぬエラーが発生しました: %s", e, exc_info=True)

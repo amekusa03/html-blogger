@@ -28,7 +28,7 @@ pip install -r requirements.txt
 
 ### ステップ 5: アプリケーションを起動
 ```bash
-python html-tobrogger.py
+python html_tobrogger.py
 ```
 
 🖥️ **GUI ウィンドウが起動します。** 

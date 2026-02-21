@@ -1,22 +1,21 @@
 # -*- coding: utf-8 -*-
+"""link_html.py
+HTMLファイル内の画像リンクを管理するモジュール
+"""
 import html
 import logging
+import queue
 import re
 import shutil
-from logging import config, getLogger
 from pathlib import Path
 from urllib.parse import unquote
 
 from bs4 import BeautifulSoup
-from json5 import load
 
 from file_class import SmartFile
 from parameter import config
 
-# logging設定
-with open("./data/log_config.json5", "r") as f:
-    logging.config.dictConfig(load(f))
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 # --- 設定 ---
 
 # 入力元フォルダ
@@ -35,23 +34,34 @@ html_extensions = config["common"]["html_extensions"]
 link_list_file = config["link_html"]["link_list_file"]
 link_list_file_html = config["link_html"]["link_list_file_html"]
 
-unlink_image_list = []
-link_image_list = []
+
+class ImageLinkManager:
+    """HTMLファイル内の画像リンクを管理するクラス"""
+
+    def __init__(self):
+        self.unlink_image_list = []
+        self.link_image_list = []
 
 
-def run(result_queue):
-    global unlink_image_list, link_image_list
-    unlink_image_list = []
-    link_image_list = []
+image_link_manager = ImageLinkManager()
 
-    """メディアマネージャーファイルを読み込む"""
+
+def run(queue_obj):
+    """HTMLファイル内の画像リンクをアップロード先に書き換える"""
+
+    logger.info("メディアマネージャーファイルを読み込む")
     if not import_media_manager():
         return False
-    """HTMLファイル内の画像リンクをアップロード先に書き換える"""
-    if not link_html(result_queue):
+    logger.info("HTMLファイル内の画像リンクをアップロード先に書き換える")
+    unlink_image_list, link_image_list = link_html(
+        queue_obj,
+        image_link_manager.unlink_image_list,
+        image_link_manager.link_image_list,
+    )
+    if not (isinstance(unlink_image_list, list) and isinstance(link_image_list, list)):
         return False
-    """HTML内の画像リンクを履歴フォルダに移動する"""
-    if not history(result_queue):
+    logger.info("HTML内の画像リンクを履歴フォルダに移動する")
+    if not history(queue_obj, unlink_image_list, link_image_list):
         return False
     if len(unlink_image_list) > 0:
         return unlink_image_list
@@ -63,11 +73,12 @@ def import_media_manager():
 
     media_manager_files = list(Path(media_manager_dir).glob("*.*"))
     if len(media_manager_files) > 1:
-        logger.error(f"エラー: {media_manager_dir} に複数のファイルが見つかりました")
+        logger.error("エラー: %s に複数のファイルが見つかりました", media_manager_dir)
         return False
     elif len(media_manager_files) == 0:
         logger.error(
-            f"メディアマネージャーファイルが見つかりません (検索対象: {media_manager_dir}/*.*"
+            "メディアマネージャーファイルが見つかりません (検索対象: %s/*.*)",
+            media_manager_dir,
         )
         return False
 
@@ -75,13 +86,15 @@ def import_media_manager():
     try:
         with open(
             media_manager_filename, "rb"
-        ) as f:  # Read as binary for MHTML parsing
-            content_bytes = f.read()
-    except Exception as e:
-        logger.error(f"メディアマネージャーファイルの読み込みに失敗: {e}")
+        ) as file:  # Read as binary for MHTML parsing
+            content_bytes = file.read()
+    except IOError as e:
+        logger.error(
+            "メディアマネージャーファイルの読み込みに失敗: %s", e, exc_info=True
+        )
         return False
 
-    """メディアマネージャーファイルからBloggerの画像URLを抽出する"""
+    logger.info("メディアマネージャーファイルからBloggerの画像URLを抽出する")
     image_url_list = {}
     pattern = re.compile(r'(https?://blogger\.googleusercontent\.com/[^"\'\s<>]+)')
     # テキストとして読み込んで正規表現で抽出 (MHTMLもテキストとして処理)
@@ -101,8 +114,8 @@ def import_media_manager():
                 tuple(image_extensions)
             ):
                 image_url_list[filename] = url
-    except Exception as e:
-        logger.error(f"テキスト解析中にエラーが発生しました: {e}")
+    except (UnicodeDecodeError, AttributeError, ValueError) as e:
+        logger.error("テキスト解析中にエラーが発生しました: %s", e, exc_info=True)
 
     # フォルダがなければ作成
     link_list_file_path = Path(link_list_file)
@@ -110,33 +123,32 @@ def import_media_manager():
     link_list_file_html_path = Path(link_list_file_html)
     link_list_file_html_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(link_list_file, "w", encoding="utf-8") as f, open(
+    with open(link_list_file, "w", encoding="utf-8") as file, open(
         link_list_file_html,
         "w",
         encoding="utf-8",  # link_list_file_htmlは確認用（なくても問題ない）
     ) as fh:
         fh.write("<html><body><h2>画像アップロードリスト</h2><ul>\n")
         for filename, url in image_url_list.items():
-            f.write(f"{filename} : {url}\n")
+            file.write(f"{filename} : {url}\n")
             fh.write(
                 f'<li>{filename} : <a href="{url}" target="_blank">{url}</a></li>\n'
             )
         fh.write("</ul></body></html>\n")
 
-    logger.info(f"イメージリストを {link_list_file}完了")
+    logger.info("イメージリストを %s 完了", link_list_file)
     return True
 
 
-def link_html(result_queue):
+def link_html(queue_object, unlink_image_list, link_image_list):
     """HTMLファイル内の画像リンクをアップロード先に書き換える"""
-    global unlink_image_list, link_image_list
 
     media_manager_link_list = {}
-    with open(link_list_file, "r", encoding="utf-8") as f:
-        for line in f:
+    with open(link_list_file, "r", encoding="utf-8") as file:
+        for line in file:
             filename, url = line.strip().split(" : ", 1)
             media_manager_link_list[filename] = url
-            logger.debug(f"読み込み: {filename} -> {url}")
+            logger.debug("読み込み: %s -> %s", filename, url)
 
     for file_path in Path(input_dir).rglob("*"):
         # ファイルであり、かつ拡張子が指定のものに含まれるかチェック
@@ -144,8 +156,8 @@ def link_html(result_queue):
 
             in_html_unlink_image_list = []
             in_html_link_image_list = []
-            with open(file_path, "r", encoding="utf-8") as f:
-                html_content = f.read()
+            with open(file_path, "r", encoding="utf-8") as file:
+                html_content = file.read()
 
             soup = BeautifulSoup(html_content, "html.parser")
             # この記事に含まれるローカル画像タグをすべて見つける
@@ -180,12 +192,14 @@ def link_html(result_queue):
                     img_tag.wrap(new_a)
 
                 logger.debug(
-                    f'  -> 画像リンク生成: <a href="{blogger_url}"><img src="{blogger_url}"></a>'
+                    '  -> 画像リンク生成: <a href="%s"><img src="%s"></a>',
+                    blogger_url,
+                    blogger_url,
                 )
-                logger.info(f"  -> 画像パス置換: {img_filename}")
+                logger.info("  -> 画像パス置換: %s", img_filename)
             # 変更を保存
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(str(soup))
+            with open(file_path, "w", encoding="utf-8") as file:
+                file.write(str(soup))
             sf = SmartFile(file_path.name)
             sf.disp_path = file_path.name
             if in_html_unlink_image_list:
@@ -193,18 +207,17 @@ def link_html(result_queue):
             else:
                 sf.status = "✔"
             sf.extensions = "html"
-            result_queue.put(sf)
-            logger.info(f"HTMLファイルを更新しました: {file_path}")
+            queue_object.put(sf)
+            logger.info("HTMLファイルを更新しました: %s", file_path.name)
             if in_html_unlink_image_list:
                 unlink_image_list.extend(in_html_unlink_image_list)
             if in_html_link_image_list:
                 link_image_list.extend(in_html_link_image_list)
-    return True
+    return unlink_image_list, link_image_list
 
 
-def history(result_queue):
+def history(queue_object, unlink_image_list, link_image_list):
     """手動アップロード用に画像を準備する"""
-    global unlink_image_list, link_image_list
     # 重複排除とソート
     unlink_image_list = list(set(unlink_image_list))
     link_image_list = list(set(link_image_list))
@@ -223,15 +236,16 @@ def history(result_queue):
         smart_file.status = "✖"
         smart_file.extensions = "image"
         smart_file.disp_path = smart_file.name
-        result_queue.put(smart_file)
+        queue_object.put(smart_file)
         if sf.name in link_image_list:
             logger.error(
-                f"画像リンクの状態が矛盾しています: {sf.name} はリンクありとなし両方に存在します。"
+                "画像リンクの状態が矛盾しています: %s はリンクありとなし両方に存在します。",
+                sf.name,
             )
     if unlink_image_list:
         logger.warning("以下の画像リンクが見つかりませんでした:")
         for sf in unlink_image_list:
-            logger.warning(f" - {sf.name}")
+            logger.warning(" - %s", sf.name)
     # メディアマネージャー内の画像リンクを収集
     count = 0
     for sf in link_image_list:
@@ -250,14 +264,12 @@ def history(result_queue):
         smart_file.status = "✔"
         smart_file.extensions = "image"
         smart_file.disp_path = smart_file.name
-        result_queue.put(smart_file)
+        queue_object.put(smart_file)
         count += 1
-    logger.info(f"{count} 枚の画像を {history_dir} に移動しました。")
+    logger.info("%d 枚の画像を %s に移動しました。", count, history_dir)
     # unlink_image_list link_image_list両方にないものはどうでも良いファイルと判断して無視する
     return True
 
-
-import queue
 
 # --- メイン処理 ---
 if __name__ == "__main__":
@@ -267,5 +279,5 @@ if __name__ == "__main__":
         run(result_queue)
     except KeyboardInterrupt:
         logger.info("処理が中断されました。")
-    except Exception as e:
-        logger.critical(f"予期せぬエラーが発生しました: {e}", exc_info=True)
+    except (OSError, IOError) as e:
+        logger.critical("予期せぬエラーが発生しました: %s", e, exc_info=True)

@@ -16,7 +16,7 @@ HTMLのクリーニング、画像への透かし追加、キーワードや位�
 本プロジェクトは、機能ごとにモジュール化されたPythonスクリプトで構成されています。
 
 ### メイン・GUI
-*   **`html-tobrogger.py`**: アプリケーションのエントリーポイント。Tkinterを使用したGUIを提供し、ユーザー操作を受け付けます。
+*   **`html_tobrogger.py`**: アプリケーションのエントリーポイント。Tkinterを使用したGUIを提供し、ユーザー操作を受け付けます。
 *   **`main_process.py`**: バックグラウンドで動作するメイン処理コントローラー。各処理モジュールを順次呼び出し、処理を順次制御を行います。
 
 ### 処理モジュール (実行順)
@@ -72,7 +72,7 @@ sudo apt-get install python3-tk
 以下のコマンドでGUIアプリを起動します。
 
 ```bash
-python3 html-tobrogger.py
+python3 html_tobrogger.py
 ```
 
 ### 3. ブログIDの設定

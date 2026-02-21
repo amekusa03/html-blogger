@@ -1,26 +1,24 @@
 # -*- coding: utf-8 -*-
-
+"""find_location.py
+HTMLファイルから地理情報を抽出し、<location_name>, <latitude>, <longitude>タグを追加するモジュール
+"""
 import logging
+import queue
 import re
 import time
 import xml.etree.ElementTree as ET
-from logging import config, getLogger
 from pathlib import Path
 
 from bs4 import BeautifulSoup
 from geopy.exc import GeocoderQuotaExceeded, GeocoderTimedOut, GeocoderUnavailable
 from geopy.geocoders import Nominatim
 from janome.tokenizer import Tokenizer
-from json5 import load
 
 from cons_progressber import ProgressBar
 from file_class import SmartFile
 from parameter import config, to_bool
 
-# logging設定
-with open("./data/log_config.json5", "r") as f:
-    logging.config.dictConfig(load(f))
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 # --- 設定 ---
 
@@ -34,16 +32,14 @@ geocode_wait = float(config["find_location"]["geocode_wait"])
 geocode_timeout = int(config["find_location"]["geocode_timeout"])
 geocode_debug = to_bool(config["find_location"]["geocode_debug"])
 html_extensions = config["common"]["html_extensions"]
-location_cache = None
+location_cache = {}
 
 
 def load_cache_location():
     """location.xmlから地域情報を読み込む"""
-    global location_cache
-    location_cache = {}
     try:
         if not Path(location_xml_file).exists():
-            logger.warning(f"{location_xml_file} が見つかりません。")
+            logger.warning("%s が見つかりません。", location_xml_file)
             return False
         tree = ET.parse(str(Path(location_xml_file)))
         root = tree.getroot()
@@ -67,8 +63,8 @@ def load_cache_location():
                 )
                 if name:
                     location_cache[name.lower()] = (name, latitude, longitude)
-    except Exception as e:
-        logger.error(f"XML読み込みエラー: {e}", exc_info=True)
+    except (ET.ParseError, OSError, ValueError) as e:
+        logger.error("XML読み込みエラー: %s", e, exc_info=True)
     return True
 
 
@@ -107,8 +103,8 @@ def save_location_cache(location_name, latitude="", longitude=""):
         )
         indent_xml(root)
         tree.write(str(Path(location_xml_file)), encoding="utf-8", xml_declaration=True)
-    except Exception as e:
-        logger.error(f"XML保存エラー: {e}", exc_info=True)
+    except (ET.ParseError, OSError, ValueError, IOError) as e:
+        logger.error("XML保存エラー: %s", e, exc_info=True)
 
 
 def indent_xml(elem, level=0):
@@ -191,12 +187,12 @@ def find_location_in_html(files):
     for spot in spot_candidates:
         spot_lower = spot.lower()
         # キャッシュ検索
-        if spot_lower in location_cache:
+        if spot_lower in (location_cache or {}):
             cached_name, cached_lat, cached_lon = location_cache[spot_lower]
             if cached_lat and cached_lon:
                 # キャッシュから取得成功
                 logger.info(
-                    f"キャッシュから取得: {spot} -> ({cached_lat}, {cached_lon})"
+                    "キャッシュから取得: %s -> (%s, %s)", spot, cached_lat, cached_lon
                 )
                 find_location = (cached_name, cached_lat, cached_lon)
                 break
@@ -204,10 +200,11 @@ def find_location_in_html(files):
         try:
             for attempt in range(geocode_retries):
                 try:
-                    logger.info(f"ジオコーディング検索: {spot}")
+                    logger.info("ジオコーディング検索: %s", spot)
+                    location = None
                     if geocode_debug:
                         logger.debug(
-                            f"(デバッグモード) ジオコーディング検索スキップ: {spot}"
+                            "(デバッグモード) ジオコーディング検索スキップ: %s", spot
                         )
                     else:
                         location = geolocator.geocode(
@@ -218,7 +215,10 @@ def find_location_in_html(files):
                     if location:
                         # ジオコーディング検索成功
                         logger.info(
-                            f"ジオコーディング成功: {spot} -> ({location.latitude}, {location.longitude})"
+                            "ジオコーディング成功: %s -> (%s, %s)",
+                            spot,
+                            location.latitude,
+                            location.longitude,
                         )
                         # キャッシュ保存
                         save_location_cache(spot, location.latitude, location.longitude)
@@ -231,12 +231,11 @@ def find_location_in_html(files):
                         find_location = (spot, location.latitude, location.longitude)
                         break
                     # 見つからない（リトライしない）
-                    logger.info(f"ジオコーディングなし: {spot} )")
+                    logger.info("ジオコーディングなし: %s", spot)
                     save_location_cache(spot, "", "")
                     location_cache[spot_lower] = (spot, "", "")
                     break
                 except (
-                    GeocoderTimedOut,
                     GeocoderUnavailable,
                     GeocoderQuotaExceeded,
                 ) as e:
@@ -247,39 +246,47 @@ def find_location_in_html(files):
                         # 待機時間が長くなりすぎないように上限を設定 (例: 60秒)
                         backoff_time = min(backoff_time, 60)
                         logger.warning(
-                            f"ジオコーディング エラー ({spot}): {e} - {backoff_time}秒後にリトライ ({attempt+1}/{geocode_retries})"
+                            "ジオコーディング エラー (%s): %s - %s秒後にリトライ (%d/%d)",
+                            spot,
+                            e,
+                            backoff_time,
+                            attempt + 1,
+                            geocode_retries,
                         )
                         time.sleep(backoff_time)
                     else:
                         raise  # 最終試行で失敗した場合、例外を再スロー（タイムアウトまたは利用不可）
-            
+
             # 場所が見つかったら候補のループを抜ける
             if find_location:
                 break
         except GeocoderTimedOut:
-            logger.warning(f"ジオコーディング リトライタイムアウト: {spot}")
+            logger.warning("ジオコーディング リトライタイムアウト: %s", spot)
         except GeocoderUnavailable:
-            logger.warning(f"ジオコーディング 利用不可応答: {spot}")
+            logger.warning("ジオコーディング 利用不可応答: %s", spot)
         except GeocoderQuotaExceeded:
-            logger.warning(f"ジオコーディング API制限超過: {spot}")
-        except Exception as e:
-            logger.error(f"ジオコーディング 通信エラー ({spot}): {e}")
+            logger.warning("ジオコーディング API制限超過: %s", spot)
+        except (OSError, IOError, ValueError) as e:
+            logger.error("ジオコーディング 通信エラー (%s): %s", spot, e)
             if find_location:
                 break
     if not find_location:
-        return files  # 見つからなかった場合は元のHTMLを返す
+        logger.warning("地点情報が見つかりませんでした: %s", files.name)
+        return files, True
 
-    # 既存の 位置 タグを削除
     soup_final = BeautifulSoup(html_text, "html.parser")
     for georss in soup_final.find_all(["latitude", "longitude", "location_name"]):
         georss.decompose()
     html_text = str(soup_final)
 
-    # HTMLに 位置 タグで位置情報を追加
+    has_warning = False
     # <time> タグの次に挿入される
     # <georss> タグを作成（name, point 両方を含む）
-    georss_tag = f"<location_name>{find_location[0]}</location_name><latitude>{find_location[1]}</latitude><longitude>{find_location[2]}</longitude>\n"
-
+    georss_tag = (
+        f"<location_name>{find_location[0]}</location_name>"
+        f"<latitude>{find_location[1]}</latitude>"
+        f"<longitude>{find_location[2]}</longitude>\n"
+    )
     # <time> タグを探して、その次の行に挿入
     if re.search(r"</time>", html_text, re.IGNORECASE):
         # </time> の直後に挿入
@@ -298,16 +305,16 @@ def find_location_in_html(files):
             )
         else:
             logger.warning(
-                f"  -> 警告: <title>, <time> タグが見つかりません。ファイル先頭に追加します。"
+                "  -> 警告: <title>, <time> タグが見つかりません。ファイル先頭に追加します。"
             )
             html_text = georss_tag + html_text
+            has_warning = True
+    with open(files, "w", encoding="utf-8") as file:
+        file.write(html_text)
+    return files, has_warning
 
-    with open(files, "w", encoding="utf-8") as f:
-        f.write(html_text)
-    return files
 
-
-def run(result_queue):
+def run(queue_obj):
     """
     HTMLファイルに地点を追加する。
     """
@@ -315,12 +322,12 @@ def run(result_queue):
     # ✅ 地点読み込み（戻り値チェック）
     if not load_cache_location():
         logger.warning("地点読み込みに失敗しました。地点注入をスキップします。")
-        return False
+        return
 
     # フォルダがなければ作成。既にあってもエラーにしない。
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"HTML地点追加処理を開始: {input_dir}")
+    logger.info("HTML地点追加処理を開始: %s", input_dir)
 
     files_to_process = [
         p
@@ -330,30 +337,27 @@ def run(result_queue):
 
     if not files_to_process:
         logger.warning("地点追加対象のHTMLファイルが見つかりません。")
-        return False
+        return
 
     for src_path in files_to_process:
         files = SmartFile(src_path)
         files.status = "⏳"
         files.extensions = "html"
         files.disp_path = files.name
-        result_queue.put(files)
-        
+        queue_obj.put(files)
+
     pbar = ProgressBar(len(files_to_process), prefix="Add Locations")
     # ディレクトリ内のアイテムを走査
     for src_path in files_to_process:
-        files = SmartFile(src_path)
-        files = find_location_in_html(files)
-        files.status = "✔"
-        files.extensions = "html"
-        files.disp_path = files.name
-        result_queue.put(files)
+        smart_file = SmartFile(src_path)
+        processed_file, has_warning = find_location_in_html(smart_file)
+        processed_file.status = "⚠" if has_warning else "✔"
+        processed_file.extensions = "html"
+        processed_file.disp_path = processed_file.name
+        queue_obj.put(processed_file)
         pbar.update()
-    logger.info(f"完了: HTML地点追加")
-    return True
+    logger.info("完了: HTML地点追加")
 
-
-import queue
 
 # --- メイン処理 ---
 if __name__ == "__main__":
@@ -363,5 +367,5 @@ if __name__ == "__main__":
         run(result_queue)
     except KeyboardInterrupt:
         logger.info("処理が中断されました。")
-    except Exception as e:
-        logger.critical(f"予期せぬエラーが発生しました: {e}", exc_info=True)
+    except (OSError, IOError, ET.ParseError) as e:
+        logger.critical("予期せぬエラーが発生しました: %s", e, exc_info=True)

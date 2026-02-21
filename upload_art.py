@@ -1,27 +1,24 @@
 # -*- coding: utf-8 -*-
+"""upload_art.py
+アップロード用のHTMLファイルを管理し、Bloggerに投稿するモジュール
+"""
 import logging
 import queue
 import random
 import shutil
 import time
 from datetime import datetime, timedelta, timezone
-from logging import config, getLogger
 from pathlib import Path
 
 from bs4 import BeautifulSoup
 from googleapiclient.errors import HttpError
-from json5 import load
 
-from auth_google import get_blogger_service
+from auth_google import BloggerService, RefreshError
 from cons_progressber import ProgressBar
 from file_class import SmartFile
-from parameter import config, get_serial, to_bool, update_serial
+from parameter import config, to_bool
 
-# --- ロギング設定 ---
-# logging設定
-with open("./data/log_config.json5", "r") as f:
-    logging.config.dictConfig(load(f))
-logger = getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 # --- 設定 ---
@@ -44,17 +41,38 @@ test_mode = to_bool(config["common"]["test_mode"])
 
 # 日本時間 (JST) の設定
 JST = timezone(timedelta(hours=9))
-service = None
-last_execution_time = 0
 
 
-def move_upload_file(result_queue):
+class BloggerServiceManager:
+    """Manages service and execution state"""
+
+    def __init__(self):
+        self._service = None
+        self.last_execution_time = 0
+
+    def get_service(self):
+        """サービスオブジェクトを取得する。未初期化の場合は初期化する。"""
+        if self._service is None:
+            try:
+                self._service = BloggerService()
+                logger.info("Blogger APIサービスを初期化しました。")
+            except (FileNotFoundError, RefreshError) as e:
+                logger.error(
+                    "Bloggerサービス初期化失敗: %s",
+                    e,
+                    exc_info=True,
+                )
+                raise  # エラーを再スローして呼び出し元に知らせる
+        return self._service
+
+
+def move_upload_file(queue_obj):
     """アップロード用にHTMLを準備する"""
     Path(upload_dir).mkdir(parents=True, exist_ok=True)
     count = 0
     # 2. input_dir内を探索
     # rglob('*') を使えばサブフォルダ内も探せます。直下だけなら glob('*')
-    if input_dir == upload_dir:
+    if Path(input_dir).resolve() == Path(upload_dir).resolve():
         logger.error(
             "エラー: input_dir と upload_dir が同じフォルダに設定されています。異なるフォルダを指定してください。"
         )
@@ -72,8 +90,8 @@ def move_upload_file(result_queue):
             smart_file.status = "⌛"
             smart_file.extensions = "html"
             smart_file.disp_path = dest_path.name
-            result_queue.put(smart_file)
-    logger.info(f"{count} 枚のhtmlを {upload_dir} にアップロードしました。")
+            queue_obj.put(smart_file)
+    logger.info("%d 枚のhtmlを %s にアップロードしました。", count, upload_dir)
     return True
 
 
@@ -85,11 +103,14 @@ def move_history_file(src_path):
         dest_path = Path(history_dir) / src_path.name
         # 3. コピー実行（メタデータも保持するcopy2を推奨）
         shutil.move(src_path, dest_path)
-        logger.info(f"履歴移動: {src_path.name}")
+        logger.info("履歴移動: %s", src_path.name)
         return True
-    except Exception as e:
-        logger.error(f"履歴移動失敗: {src_path.name} - {e}")
+    except (IOError, OSError) as e:
+        logger.error("履歴移動失敗: %s - %s", src_path.name, e, exc_info=True)
         return False
+
+
+service_manager = BloggerServiceManager()
 
 
 def ready_upload():
@@ -103,18 +124,12 @@ def ready_upload():
         return False
 
     # 【重大エラーチェック】認証情報の事前確認
-    global service
 
-    if service is None:
-        try:
-            service = get_blogger_service()
-        except FileNotFoundError as e:
-            logger.error(f"{e}")
-            return False
-        except Exception as e:
-            logger.error(f"Google認証に失敗しました: {e}")
-            logger.error("認証情報（credentials.json）が有効か確認してください。")
-            return False
+    try:
+        service_manager.get_service()
+    except (FileNotFoundError, RefreshError):
+        # get_service内でエラーログは出力済み
+        return False
     return True
 
 
@@ -123,24 +138,23 @@ def upload_art(art_html):
     try:
         # htnlファイル（ready_upload フォルダ内）
         if not art_html:
-            logger.info(f"アップロードする記事が見つかりません。")
+            logger.info("アップロードする記事が見つかりません。")
             return True
 
         # pbar = ProgressBar(count, prefix='Upload art')
 
-        global last_execution_time
-        elapsed_time = time.time() - last_execution_time
+        elapsed_time = time.time() - service_manager.last_execution_time
 
         # ゆらぎを追加 (0.5秒〜3.0秒)
         jitter = random.uniform(0.5, 3.0)
 
         if elapsed_time < delay_seconds:
             wait_time = delay_seconds - elapsed_time + jitter
-            logger.info(f"待機中... ({wait_time:.1f}秒)")
+            logger.info("待機中... (%.1f秒)", wait_time)
             time.sleep(wait_time)
-        elif last_execution_time > 0:
+        elif service_manager.last_execution_time > 0:
             # 規定時間を経過していても、機械的な動作を避けるためランダムに待機
-            logger.info(f"待機中... ({jitter:.1f}秒)")
+            logger.info("待機中... (%.1f秒)", jitter)
             time.sleep(jitter)
 
         # タイトルは<title>タグから抽出
@@ -188,7 +202,8 @@ def upload_art(art_html):
                 }
             except ValueError:
                 logger.warning(
-                    f"位置情報の座標変換に失敗しました。位置情報はスキップされます。 (タイトル: {title})"
+                    "位置情報の座標変換に失敗しました。位置情報はスキップされます。 (タイトル: %s)",
+                    title,
                 )
                 location_data = None
         else:
@@ -219,12 +234,11 @@ def upload_art(art_html):
             body["location"] = location_data
 
         logger.info("=" * 50)
-        logger.info(f"アップロード開始: {title}")
-        logger.info(f"公開日: {published}")
-        logger.info(f"BLOG_ID: {blog_id}")
-        logger.info(f"ラベル: {labels}")
+        logger.info("アップロード開始: %s", title)
+        logger.info("公開日: %s", published)
+        logger.info("BLOG_ID: %s", blog_id)
+        logger.info("ラベル: %s", labels)
 
-        global service
         # API呼び出しのリトライ処理
         success = False
         for attempt in range(max_retries):
@@ -232,46 +246,54 @@ def upload_art(art_html):
                 if not test_mode:
                     # 投稿
                     response = (
-                        service.posts()
+                        service_manager.get_service()
+                        .posts()
                         .insert(blogId=blog_id, body=body, isDraft=True)
                         .execute()
                     )
-                    logger.info(f"投稿ID: {response.get('id')}")
+                    logger.info("投稿ID: %s", response.get("id"))
                 else:
                     logger.info("【テストモード】API呼び出しをスキップします")
 
-                logger.info(f" 投稿完了 : {title if title else '(タイトルなし)'}")
+                logger.info(" 投稿完了 : %s", title if title else "(タイトルなし)")
                 success = True
                 break
-            except Exception as e:
+            except (HttpError, OSError, IOError, TimeoutError) as e:
                 # HttpErrorの場合、ステータスコードを確認
                 if isinstance(e, HttpError):
                     # 400番台（クライアントエラー）は429（Too Many Requests）以外リトライしない
                     if 400 <= e.resp.status < 500 and e.resp.status != 429:
                         logger.error(
-                            f"APIクライアントエラー (ステータス: {e.resp.status}): {e} - 再試行を中止します"
+                            "APIクライアントエラー (ステータス: %s): %s - 再試行を中止します",
+                            e.resp.status,
+                            e,
                         )
                         break
 
                 if attempt < max_retries - 1:
                     wait_time = (attempt + 1) * 2
                     logger.warning(
-                        f"APIエラー (試行 {attempt+1}/{max_retries}): {e} - {wait_time}秒後に再試行します"
+                        "APIエラー (試行 %s/%s): %s - %s秒後に再試行します",
+                        attempt + 1,
+                        max_retries,
+                        e,
+                        wait_time,
                     )
                     time.sleep(wait_time)
                 else:
                     logger.error(
-                        f"アップロード失敗 (タイトル: {title}): {e}", exc_info=True
+                        "アップロード失敗 (タイトル: %s): %s", title, e, exc_info=True
                     )
             finally:
-                last_execution_time = time.time()
+                service_manager.last_execution_time = time.time()
         return success
-    except Exception as e:
-        logger.error(f"記事処理中に予期せぬエラーが発生しました: {e}", exc_info=True)
+    except (ValueError, AttributeError, TypeError) as e:
+        logger.error("記事処理中に予期せぬエラーが発生しました: %s", e, exc_info=True)
         return False
 
+
 def is_resume():
-    # upload_dir (投稿用一時フォルダ) にファイルがあれば、再起動（再開）と判定する
+    """upload_dir (投稿用一時フォルダ) にファイルがあれば、再起動（再開）と判定する"""
     if Path(upload_dir).exists():
         has_html = any(
             p.is_file() and p.suffix.lower() in html_extensions
@@ -281,20 +303,20 @@ def is_resume():
             logger.info("再起動からの処理を開始します。(ファイルコピーをスキップ)")
             return True
     logger.debug("新規処理を開始します。ファイルを準備します。")
-    return False    
+    return False
 
-def run(result_queue):
+
+def run(queue_obj):
     """input_dir フォルダからアップロードを実行"""
-    if service is None:
-        logger.info("サービス開始")
-        if not ready_upload():
-            logger.error("アップロード準備に失敗しました。処理を中断します。")
-            return False
-    
+    logger.info("サービス開始")
+    if not ready_upload():
+        logger.error("アップロード準備に失敗しました。処理を中断します。")
+        return False
+
     # 新規処理の場合は、input_dir から upload_dir へファイルをコピーして準備する
     if not is_resume():
         logger.debug("新規処理を開始します。ファイルを準備します。")
-        if not move_upload_file(result_queue):
+        if not move_upload_file(queue_obj):
             return False
 
     # 処理対象のファイルを upload_dir から取得し、名前順でソート
@@ -315,7 +337,7 @@ def run(result_queue):
         file.status = "⏳"
         file.extensions = "html"
         file.disp_path = file.name
-        result_queue.put(file)
+        queue_obj.put(file)
 
     pbar = ProgressBar(len(files_to_process), prefix="Art HTML")
     processed_count = 0
@@ -327,24 +349,26 @@ def run(result_queue):
             file.status = "⏸️"
             file.extensions = "html"
             file.disp_path = file.name
-            result_queue.put(file)
-            pbar.update()            
+            queue_obj.put(file)
+            pbar.update()
             wait_posts_list.append(file)
-            logger.info(f"実行上限に達しました: {file.name}")
+            logger.info("実行上限に達しました: %s", file.name)
             continue  # 以降のファイルはスキップして処理を続行する場合は continue を使用
 
         file = SmartFile(src_path)
         file.status = "▶"  # 処理中ステータスをGUIに通知
         file.extensions = "html"
         file.disp_path = file.name
-        result_queue.put(file)
+        queue_obj.put(file)
 
         try:
             art_html = src_path.read_text(encoding="utf-8")
-        except Exception as e:
-            logger.error(f"ファイル読み込み失敗: {src_path.name} - {e}")
+        except (IOError, OSError, UnicodeDecodeError) as e:
+            logger.error(
+                "ファイル読み込み失敗: %s - %s", src_path.name, e, exc_info=True
+            )
             file.status = "✘"
-            result_queue.put(file)
+            queue_obj.put(file)
             continue
 
         if upload_art(art_html):
@@ -354,17 +378,24 @@ def run(result_queue):
             else:
                 file.status = "⚠️"
                 logger.error(
-                    f"履歴保存失敗のため、元ファイルを残します: {src_path.name}"
+                    "履歴保存失敗のため、元ファイルを残します: %s",
+                    src_path.name,
+                    exc_info=True,
                 )
-            result_queue.put(file)
+            queue_obj.put(file)
         else:
             file.status = "✘"
-            result_queue.put(file)
-            logger.error(f"記事のアップロードに失敗しました: {src_path.name}")
+            queue_obj.put(file)
+            logger.error(
+                "記事のアップロードに失敗しました: %s", src_path.name, exc_info=True
+            )
             # 失敗しても次のファイルの処理を継続する場合はここでのreturnは不要
         pbar.update()
     if wait_posts_list:
-        logger.info(f"{len(wait_posts_list)} 件の記事が上限に達したため、翌日以降の実行で処理されます。")
+        logger.info(
+            "%s 件の記事が上限に達したため、翌日以降の実行で処理されます。",
+            len(wait_posts_list),
+        )
         return wait_posts_list
     # 全て成功
     return True
@@ -378,5 +409,5 @@ if __name__ == "__main__":
         run(result_queue)
     except KeyboardInterrupt:
         logger.info("処理が中断されました。")
-    except Exception as e:
-        logger.critical(f"予期せぬエラーが発生しました: {e}", exc_info=True)
+    except (IOError, OSError) as e:
+        logger.critical("予期せぬエラーが発生しました: %s", e, exc_info=True)
