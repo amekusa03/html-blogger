@@ -88,7 +88,7 @@ venv\Scripts\activate  # Windows
 1. [Google Cloud Console](https://console.cloud.google.com) にアクセス
 2. 「APIとサービス」→「認証情報」で OAuth クライアント ID をダウンロード
 3. ダウンロードしたファイルを `credentials.json` に名前変更
-4. `html_tobrogger.py`と同じフォルダに配置
+4. `data/` フォルダに配置
 
 📝 **詳細**: [SETUP.md](SETUP.md) ステップ4を参照
 
@@ -141,7 +141,7 @@ venv\Scripts\activate  # Windows
 **解決策**:
 ```bash
 # トークンを削除
-rm token.pickle
+rm data/token.pickle
 
 # 次回起動時に再認証が促されます
 ```
@@ -178,7 +178,7 @@ report/
 
 **解決策**:
 
-1. `keywords.xml`を確認
+1. `data/keywords.xml`を確認
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <keywords>
@@ -192,7 +192,17 @@ report/
 </keywords>
 ```
 
-2. XML形式が正しいか確認（XMLエディタで開く）
+2. `data/location.xml`の形式を確認
+```xml
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+    <location>
+        <name>タイ</name>
+        <latitude>15.8700</latitude>
+        <longitude>100.9925</longitude>
+    </location>
+</root>
+```
 
 3. ファイルの文字エンコーディングが UTF-8 か確認
 
@@ -212,22 +222,25 @@ report/
 <title>タイの観光地</title>  <!-- "タイ" が認識される -->
 ```
 
-2. `locate.xml`の形式を確認
+2. `data/location.xml`の形式を確認
 ```xml
-<location>
-    <name>タイ</name>
-    <latitude>15.8700</latitude>
-    <longitude>100.9925</longitude>
-</location>
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+    <location>
+        <name>タイ</name>
+        <latitude>15.8700</latitude>
+        <longitude>100.9925</longitude>
+    </location>
+</root>
 ```
 
 3. 地域名を手動で追加
-- テキストエディタで `locate.xml` を開く
+- テキストエディタで `data/location.xml` を開く
 - 必要な位置情報を追加
 
 4. OpenStreetMap で検証
 - https://www.openstreetmap.org/search で地域名を検索
-- 座標を確認して `locate.xml` に追加
+- 座標を確認して `data/location.xml` に追加
 
 ---
 
@@ -237,7 +250,7 @@ report/
 
 **解決策**:
 1. タイトルに地域名を含める（自動再取得）
-2. 手動で `locate.xml` に位置情報を追加
+2. 手動で `data/location.xml` に位置情報を追加
 3. 処理を再実行
 
 ---
@@ -294,7 +307,7 @@ image/
 
 **解決策**:
 
-1. `config.json5` を確認
+1. `data/config.json5` を確認
 ```json5
   // 画像加工設定
   mod_image: {
@@ -327,12 +340,12 @@ sudo apt-get install fonts-liberation
 ```bash
 # Blogger → ダッシュボード → URL確認
 # https://www.blogger.com/blog/posts/{BLOG_ID}
-# BLOG_ID を config.json5 に設定
+# BLOG_ID を data/config.json5 に設定
 ```
 
 2. 認証情報を確認
 ```bash
-rm token.pickle
+rm data/token.pickle
 # 次回起動時に再認証
 ```
 
@@ -348,7 +361,7 @@ rm token.pickle
 **原因**: Google Blogger API の割り当てに達しました
 
 **解決策**:
-- 24時間待つ（割り当てはリセットされます）
+- 日本時間17:00以降に再実行（割り当てはリセットされます）
 - または Google Cloud Console で割り当てを増加申請
 
 ---
@@ -358,7 +371,7 @@ rm token.pickle
 **原因**:  フィード形式が正しくない
 
 **解決策**:
-1. `ready_load/` のhtmlファイルを確認
+1. `data/upload/` のhtmlファイルを確認
 2. ブラウザーで正常に表示できるか確認
 3. 必須フィールドが含まれているか確認：
    - `<html>`
@@ -469,15 +482,15 @@ python html_tobrogger.py > debug.log 2>&1
 
 ```bash
 # Linux/Mac
-xmllint --noout keywords.xml
-xmllint --noout locate.xml
+xmllint --noout data/keywords.xml
+xmllint --noout data/location.xml
 ```
 
 ---
 
 ## さらにサポートが必要な場合
 
-1. [GitHub Issues](https://github.com/yourusername/htmltobrogger/issues) で同様の問題を検索
+1. [GitHub Issues](https://github.com/amekusa03/html-blogger/issues) で同様の問題を検索
 2. エラーメッセージ全文をコピーして新しい Issue を作成
 3. 以下の情報を含める：
    - OS とバージョン
@@ -487,4 +500,4 @@ xmllint --noout locate.xml
 
 ---
 
-**最終更新**: 2026年1月28日
+**最終更新**: 2026年2月23日

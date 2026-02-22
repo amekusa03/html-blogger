@@ -24,7 +24,7 @@ pip install -r requirements.txt
 ```
 
 ### ステップ 4: Google Cloud 認証ファイルを配置
-[SETUP.md](docs/SETUP.md) のステップ 4 に従って、`credentials.json` をプロジェクトフォルダにコピー。
+[SETUP.md](docs/SETUP.md) のステップ 4 に従って、`credentials.json` を `data/` フォルダにコピー。
 
 ### ステップ 5: アプリケーションを起動
 ```bash
@@ -36,7 +36,7 @@ python html_tobrogger.py
 ⚠️ **起動確認チェックリスト**:
 - [ ] GUI ウィンドウが表示される
 - [ ] 「フォルダを開く」ボタンが反応する
-- [ ] `reports/` フォルダが開く
+- [ ] `data/report/` フォルダが開く
 
 ---
 
@@ -103,8 +103,7 @@ reports/
 
 ## ⚙️ 必須設定
 
-### 1. `config.json5` を編集
-```json5
+### 1. `data/config.json5` を編集
 ```json5
 {
     // 画像加工設定
@@ -118,12 +117,15 @@ reports/
 }
 ```
 
-### 2. `keywords.xml` を編集
+### 2. `data/keywords.xml` を編集
 ```xml
-<Mastkeywords>
-    <word>キーワード1</word>
-    <word>キーワード2</word>
-</Mastkeywords>
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+    <Mastkeywords>
+        <word>キーワード1</word>
+        <word>キーワード2</word>
+    </Mastkeywords>
+</root>
 ```
 
 ---
@@ -165,7 +167,7 @@ A: Python の version 確認、 venv が有効化されているか確認して�
 A: エラーメッセージをコピーして [TROUBLESHOOTING.md](TROUBLESHOOTING.md) で検索。見つからない場合は [GitHub Issues](https://github.com/amekusa03/html-blogger/issues) で報告。
 
 **Q: 処理は完了したが、ファイルが生成されていない**
-A: work/ フォルダの内容を確認。config.json5 の設定を再度確認。
+A: data/work/ フォルダの内容を確認。
 
 ---
 

@@ -8,21 +8,29 @@ HTMLtoBloggerの内部構造と各ファイルの役割を説明します。
 htmltobrogger/
 │
 ├── 📄 html_tobrogger.py        ← メインGUIアプリケーション
-├── 📄 config.py                ← 設定管理モジュール
-├── 📄 config.json5               ← 設定ファイル（ユーザー編集対象）
+├── 📄 main_process.py          ← 処理フロー制御
+├── 📄 parameter.py             ← 共通定数・設定読み込み
 │
 ├── 📋 処理スクリプト
-│   ├── find_keywords.py         ① キーワード自動注入
-│   ├── find_locate.py     ② 位置情報（地理タグ）自動付与
-│   ├── clean_html.py              ③ HTMLクリーニング・メタデータ抽出
-│   ├── mod_image.py   ④ 画像EXIF削除・ウォーターマーク追加
-│   ├── open_blogger.py         ⑤ Blogger認証・ブラウザ起動
-│   ├── upload_image.py       ⑥ 画像アップロード支援
-│   ├── link_image.py         ⑦ 画像リンク編集
-│   └── upload_art.py             ⑧ 自動投稿（Blogger API v3）
+│   ├── import_file.py           ① ファイルチェック・取り込み
+│   ├── serial_file.py           ② シリアライズ処理
+│   ├── clean_html.py            ③ HTMLクリーニング・メタデータ抽出
+│   ├── find_keyword.py          ④ キーワード自動注入
+│   ├── find_location.py         ⑤ 位置情報（地理タグ）自動付与
+│   ├── find_date.py             ⑥ 日付抽出
+│   ├── mod_image.py             ⑦ 画像EXIF削除・ウォーターマーク追加
+│   ├── upload_image.py          ⑧ 画像アップロード支援
+│   ├── import_media_manager.py  ⑨ メディアマネージャークリーンアップ
+│   ├── link_html.py             ⑩ 画像リンク編集
+│   └── upload_art.py            ⑪ 自動投稿（Blogger API v3）
 │
-├── 📁 データフォルダ
-│   ├── reports/                ← 入力：ユーザーのHTMLファイル
+├── 🛠️ ユーティリティ
+│   ├── file_class.py            ← ファイル管理クラス
+│   ├── auth_google.py           ← Google認証処理
+│   └── cons_progressber.py      ← コンソール進捗バー表示
+│
+├── 📁 データフォルダ (data/)
+│   ├── report/                  ← 入力：ユーザーのHTMLファイル
 │   │   ├── 0205tai/
 │   │   │   ├── index.html
 │   │   │   ├── photo01.jpg
@@ -30,55 +38,61 @@ htmltobrogger/
 │   │   ├── 0209nori/
 │   │   └── 0301hokai/
 │   │
-│   ├── work/                   ← 処理中：全段階の中間ファイル
+│   ├── work/                    ← 処理中：全段階の中間ファイル
 │   │   ├── 0205tai/
-│   │   │   ├── index.html      (修正版)
+│   │   │   ├── index.html       (修正版)
 │   │   │   └── index.html.backup_... (自動バックアップ)
 │   │   ├── 0209nori/
 │   │   └── 0301hokai/
 │   │
-│   ├── image/                  ← リネーム済み画像（アップロード用）
-│   │   ├── 0205taiphoto01.jpg
-│   │   ├── 0205taiphoto02.jpg
-│   │   ├── 0209noriphoto01.jpg
-│   │   └── ...
+│   ├── backup/                  ← バックアップファイル
 │   │
-│   ├── ready_load/             ← アップロード前：待機ファイル
-│   │   ├── feed.atom          (Atomフィード)
+│   ├── serialization/           ← シリアライズ処理後のファイル
+│   │
+│   ├── upload/                  ← アップロード前：待機ファイル
+│   │   ├── feed.atom            (Atomフィード)
 │   │   ├── 0205tai_index.html
 │   │   ├── 0209nori_index.html
-│   │   └── config_upload.ini  (投稿設定)
+│   │   └── config_upload.ini    (投稿設定)
 │   │
-│   └── finished/               ← 完了：アップロード済みファイル
-│       ├── feed.atom
-│       ├── 0205tai_index.html
-│       └── ...
+│   ├── history/                 ← 完了：アップロード済みファイル
+│   │   ├── feed.atom
+│   │   ├── 0205tai_index.html
+│   │   └── ...
+│   │
+│   └── media_man/               ← メディアマネージャーファイル保存場所
 │
-├── 📝 設定ファイル
-│   ├── keywords.xml            ← メタキーワード定義（ユーザー編集）
-│   ├── locate.xml              ← 位置情報キャッシュ（自動更新）
-│   ├── credentials.json        ← Google認証（GitHubに含めない！）
-│   └── token.pickle            ← 認証トークン（自動生成）
+├── 📝 設定ファイル (data/)
+│   ├── config.json5             ← アプリケーション全体の設定（ユーザー編集対象）
+│   ├── log_config.json5         ← ログ出力の設定
+│   ├── serial.json5             ← シリアライズ番号カウンター（自動管理）
+│   ├── keywords.xml             ← メタキーワード定義（ユーザー編集）
+│   ├── location.xml             ← 位置情報キャッシュ（自動更新）
+│   ├── credentials.json         ← Google認証（GitHubに含めない！）
+│   └── token.pickle             ← 認証トークン（自動生成）
 │
 ├── 📚 ドキュメント
-│   ├── README.md               ← プロジェクト概要・セットアップ
-│   ├── LICENSE                 ← MIT ライセンス
-│   ├── requirements.txt        ← Python依存パッケージ一覧
-│   ├── .gitignore              ← Git除外ファイル設定
+│   ├── README.md                ← プロジェクト概要・セットアップ
+│   ├── LICENSE                  ← MIT ライセンス
+│   ├── requirements.txt         ← Python依存パッケージ一覧
+│   ├── pyproject.toml           ← プロジェクト設定
+│   ├── .gitignore               ← Git除外ファイル設定
 │   │
 │   └── docs/
-│       ├── SETUP.md            ← Google Cloud API設定手順
-│       ├── TROUBLESHOOTING.md  ← 問題解決ガイド
-│       ├── ARCHITECTURE.md     ← アーキテクチャ詳細（このファイル）
-│       └── CONTRIBUTING.md     ← 開発者向けガイド（計画中）
+│       ├── QUICKSTART.md        ← クイックスタートガイド
+│       ├── SETUP.md             ← Google Cloud API設定手順
+│       ├── TROUBLESHOOTING.md   ← 問題解決ガイド
+│       ├── ARCHITECTURE.md      ← アーキテクチャ詳細（このファイル）
+│       ├── CONTRIBUTING.md      ← 開発者向けガイド（計画中）
+│       └── help.html            ← ヘルプページ
 │
 ├── 📦 その他
-│   ├── .github/                ← GitHub設定
+│   ├── .github/                 ← GitHub設定
 │   │   └── copilot-instructions.md
 │   │
-│   ├── __pycache__/            ← キャッシュ（Gitで除外）
+│   ├── __pycache__/             ← キャッシュ（Gitで除外）
 │   │
-│   ├── venv/                   ← 仮想環境（Gitで除外）
+│   ├── venv/                    ← 仮想環境（Gitで除外）
 │   │   ├── bin/
 │   │   ├── lib/
 │   │   └── ...
@@ -89,7 +103,7 @@ htmltobrogger/
 ## 処理パイプラインのデータフロー
 
 ```
-① imort_file.py
+① import_file.py
    ファイルチェック
 report/                                    ← ユーザー入力
    ↓
@@ -97,15 +111,16 @@ backup/
 work/
 ② serial_file.py
    フォルダ除去、シリアル追加
-   ↓serial/
+   ↓
+serialization/
 work/ (HTML + 画像)
    ↓
-③ cean-html.py
+③ clean_html.py
    タグ除去・メタデータ抽出
    ↓
 work/ (クリーニング済み HTML)
    ↓
-④ find_keywords.py
+④ find_keyword.py
    キーワード自動抽出・注入
    source: keywords.xml
    ↓
@@ -113,7 +128,7 @@ work/ (修正版 HTML + 画像)
    ↓
 ⑤ find_location.py
    地理タグ自動付与
-   source: locate.xml
+   source: location.xml
    ↓
 work/ (更新)
    ↓
@@ -128,16 +143,19 @@ work/ (更新)
 work/ (処理完了)
    ↓
 ⑧ upload_image.py
-image/ (画像)
-   Bloggerへ画像アップロード                 ←ユーザー操作  
+upload/ (画像)
+   Bloggerへ画像アップロード                 ← ユーザー操作  
    ↓
-⑨ link_html.py
-    メディアマネージャーファイル保存         ←ユーザー操作
+⑨ import_media_manager.py
+   メディアマネージャーファイル保存          ← ユーザー操作
+   メディアマネージャーフォルダクリーンアップ
+   ↓
+⑩ link_html.py
    メディアマネージャーファイル解析
    URLリンク
    ↓
-⑩ up_loader.py
-art_ready_load/ (投稿設定)
+⑪ upload_art.py
+upload/ (投稿設定)
    自動投稿
    ↓
 history/ (完了)
@@ -245,13 +263,14 @@ Blogger (オンライン)
     backup_dir: './data/backup',        // バックアップフォルダ
     blogger_url: 'https://www.blogger.com/blogger.g?blogID=',  // ブロガーURL
     media_manager_url: 'https://www.blogger.com/mediamanager/album/',   // ブロガーメディアマネージャーURL
+  }
 }
 ```
 
 ### keywords.xml
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<keywords>
+<root>
     <Mastkeywords>   # 必ず登録されるラベルキーワード
         <word>キーワード1</word>
         <word>キーワード2</word>
@@ -260,13 +279,13 @@ Blogger (オンライン)
         <word>キーワード3</word>
         <word>キーワード4</word>
     </Hitkeywords>
-</keywords>
+</root>
 ```
 
-### locate.xml
+### location.xml
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<locations>
+<root>
     <location>
         <name>タイ</name>  # 地域
         <latitude>15.8700</latitude>   # 緯度
@@ -277,23 +296,22 @@ Blogger (オンライン)
         <latitude>35.6762</latitude>
         <longitude>139.6503</longitude>
     </location>
-</locations>
+</root>
 ```
 
 ## 依存パッケージ
 
 | パッケージ | 用途 | version |
 |-----------|------|---------|
-| BeautifulSoup4 | HTMLパース | ≥4.12.0 |
+| json5 | JSON5形式の設定ファイル読み込み | - |
+| beautifulsoup4 | HTMLパース | ≥4.12.0 |
 | geopy | 地名→座標変換 | ≥2.3.0 |
 | Pillow (PIL) | 画像処理 | ≥10.0.0 |
-| piexif | EXIF削除 | ≥1.1.3 |
 | janome | 形態素解析 | ≥0.4.2 |
 | google-api-python-client | Blogger API | ≥2.100.0 |
 | google-auth-httplib2 | Google認証 | ≥0.2.0 |
 | google-auth-oauthlib | OAuth2フロー | ≥1.2.0 |
-| pykakasi | 日本語変換 | ≥2.2.0 |
 
 ---
 
-**最終更新**: 2026年2月12日
+**最終更新**: 2026年2月22日

@@ -11,30 +11,59 @@ HTMLのクリーニング、画像への透かし追加、キーワードや位�
 *   **Bloggerアップロード**: 画像リンクと記事をBlogger APIを使用して下書きとして投稿。
 *   **GUI操作**: 進行状況の可視化、エラー時のリカバリー機能などを備えた使いやすいGUI。
 
-## ファイル構成と役割
+## 処理の流れ
 
-本プロジェクトは、機能ごとにモジュール化されたPythonスクリプトで構成されています。
+以下の順番で処理が実行されます:
 
-### メイン・GUI
-*   **`html_tobrogger.py`**: アプリケーションのエントリーポイント。Tkinterを使用したGUIを提供し、ユーザー操作を受け付けます。
-*   **`main_process.py`**: バックグラウンドで動作するメイン処理コントローラー。各処理モジュールを順次呼び出し、処理を順次制御を行います。
+1.  **`import_file.py`**: 原稿フォルダから作業フォルダへファイルを取り込みます。
+2.  **`serial_file.py`**: ファイル名を連番形式に変換します。
+3.  **`clean_html.py`**: HTMLをBlogger用にクリーンアップします。
+4.  **`find_keyword.py`**: 記事本文からキーワードを抽出します。
+5.  **`find_location.py`**: 記事内の地名を抽出し、位置情報を付与します。
+6.  **`find_date.py`**: 記事内の日付を解析します。
+7.  **`mod_image.py`**: 画像の加工（リサイズ、透かし追加）を行います。
+8.  **`upload_image.py`**: 画像をアップロード用に準備します。
+9.  **`import_media_manager.py`**: メディアマネージャー用フォルダをクリーンアップします。
+10. **`link_html.py`**: HTML内の画像リンクを更新します。
+11. **`upload_art.py`**: 完成した記事をBloggerにアップロードします。
 
-### 処理モジュール (実行順)
-1.  **`import_file.py`**: 原稿フォルダから作業フォルダへファイルを取り込みます。画像・HTMLの形式チェックとバックアップを行います。
-2.  **`serial_file.py`**: ファイル名を連番形式（シリアル番号）に変換し、フォルダ構造をフラット化します。
-3.  **`clean_html.py`**: HTMLのタグ除去、スタイル削除、フォーマット正規化を行い、Bloggerに適した形式にします。
-4.  **`find_keyword.py`**: 記事本文からキーワードを抽出し、`<search>`タグとして埋め込みます。
-5.  **`find_location.py`**: 記事内の地名を抽出し、ジオコーディングを行って位置情報タグを追加します。
-6.  **`find_date.py`**: 記事内の日付表現を解析し、`<time>`タグを追加します。
-7.  **`mod_image.py`**: 画像のリサイズ、透かし（ウォーターマーク）の追加、EXIF情報の削除を行います。
-8.  **`upload_image.py`**: 画像ファイルをアップロード用フォルダに準備します。
-9.  **`link_html.py`**: Bloggerのメディアマネージャーから取得した画像URLリストを元に、HTML内のローカル画像リンクをWeb上のURLに置換します。
-10. **`upload_art.py`**: 完成したHTML記事をBlogger APIを使用して下書きとしてアップロードします。
+## ファイル構成
 
-### ユーティリティ・設定
-*   **`file_class.py`**: ファイル操作を補助する `SmartFile` クラス定義。
-*   **`parameter.py`**: 設定ファイル (`config.json5`) の読み込みとパラメータ管理。
-*   **`auth_google.py`**: Google APIのOAuth認証処理を担当。
+### メインファイル
+*   **`html_tobrogger.py`**: メインGUIアプリケーション
+*   **`main_process.py`**: 処理フローの制御
+
+### 処理モジュール
+*   **`import_file.py`**: ファイル取り込み検証
+*   **`serial_file.py`**: ファイル名の連番化
+*   **`clean_html.py`**: HTMLクリーニング
+*   **`find_keyword.py`**: キーワード抽出
+*   **`find_location.py`**: 位置情報付与
+*   **`find_date.py`**: 日付抽出
+*   **`mod_image.py`**: 画像加工
+*   **`upload_image.py`**: 画像準備
+*   **`import_media_manager.py`**: メディアマネージャークリーンアップ
+*   **`link_html.py`**: HTMLリンク更新
+*   **`upload_art.py`**: 記事アップロード
+
+### ユーティリティ
+*   **`file_class.py`**: ファイル管理クラス
+*   **`parameter.py`**: 共通定数・設定読み込み
+*   **`auth_google.py`**: Google認証処理
+*   **`cons_progressber.py`**: コンソール進捗バー表示
+
+### 設定ファイル（`data/` フォルダ内）
+*   **`config.json5`**: アプリケーション全体の設定
+*   **`log_config.json5`**: ログ出力の設定
+*   **`serial.json5`**: シリアル番号カウンター（自動管理）
+*   **`keywords.xml`**: メタキーワード定義
+*   **`location.xml`**: 位置情報キャッシュ（自動更新）
+*   **`credentials.json`**: Google認証情報（要ユーザー配置、GitHubに含めない）
+*   **`token.pickle`**: 認証トークン（自動生成）
+
+### その他
+*   **`requirements.txt`**: 必要なPythonパッケージ一覧
+*   **`pyproject.toml`**: プロジェクト設定
 
 ## 動作環境
 
@@ -121,3 +150,10 @@ python3 html_tobrogger.py
 
 *   © OpenStreetMap contributors
 *   その他、使用しているライブラリのライセンスに従います。
+
+## 📚 ドキュメント
+
+- **[クイックスタート](docs/QUICKSTART.md)** - 5分でセットアップ
+- **[セットアップガイド](docs/SETUP.md)** - Google Cloud & Blogger API設定
+- **[アーキテクチャ](docs/ARCHITECTURE.md)** - プロジェクト構造の詳細
+- **[トラブルシューティング](docs/TROUBLESHOOTING.md)** - よくある問題と解決方法

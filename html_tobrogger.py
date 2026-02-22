@@ -3,6 +3,8 @@
 HTML to Bloggerのメインアプリケーション。TkinterでGUIを構築して、main_process.pyの処理をバックグラウンドスレッドで実行する。
 ファイルのステータス管理、プロセスの進行状況表示、ログ表示、エラーファイルの管理などを行う。
 """
+import sys
+import os
 import logging
 import queue
 import threading
@@ -246,7 +248,9 @@ class App(tk.Tk):
                         "処理完了", "すべての処理が完了しました。\nお疲れ様でした！"
                     )
                     logger.info("すべての処理が完了しました。")
-                    self.execute_common()
+                    self.selection_clear()
+                    restart_program()  # 処理完了後にプログラムを再起動して初期状態に戻す
+                    #self.execute_common()
                 if (
                     msg_type == "import_files"
                     or msg_type == "check_files"
@@ -615,6 +619,10 @@ class App(tk.Tk):
             "HTML to Blogger\nVersion: 1.0.0\n\nMap Data © OpenStreetMap contributors",
         )
 
+def restart_program():
+    """Pythonスクリプトを自身で再起動する"""
+    python = sys.executable
+    os.execl(python, python, *sys.argv)
 
 # --- mainエントリポイント ---
 if __name__ == "__main__":

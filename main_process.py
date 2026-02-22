@@ -17,6 +17,7 @@ import find_location
 
 # 既存モジュールのインポート
 import import_file
+import import_media_manager
 import link_html
 import mod_image
 import serial_file
@@ -101,14 +102,11 @@ def main_process(command_queue, result_queue):
                 upload_image.run(result_queue)
                 process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])
-            # if command == "history_image":
-            #     logger.info("画像アップロード履歴保存")
-
-            #     result_queue.put("history_image")
             if command == "import_media_manager":
                 logger.info(process_def[command]["name"])
+                import_media_manager.run()
                 process_def[command]["status"] = "✔"
-                result_queue.put(process_def[command])  # GUIのみ
+                result_queue.put(process_def[command])
             if command == "link_html":
                 logger.info(process_def[command]["name"])
                 result = link_html.run(result_queue)
@@ -285,6 +283,6 @@ process_def = {
         "name": "終了",
         "status": "⌛",
         "nextprocess": "import_files",
-        "autonext": False,
+        "autonext": True,
     },
 }

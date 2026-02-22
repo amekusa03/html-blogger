@@ -109,24 +109,21 @@ APIとサービス → 認証情報
 1. 作成完了後、ダウンロードボタン（↓アイコン）をクリック
 2. JSONファイルが自動ダウンロードされます
 3. ファイル名を `credentials.json` に変更
-4. プロジェクトルート（`html_tobrogger.py`と同じフォルダ）に配置
+4. `data/` フォルダに配置
 
-```
 htmltobrogger/
 ├─ html_tobrogger.py
-├─ data ┬ credentials.json  ← ここに配置
-│　　　　├backup
-│　　　　├histroy
-│　　　　├log
-│　　　　├logs
-│　　　　├media_man
-│　　　　├report
-│　　　　├serialization
-│　　　　├upload
-│　　　　└work
-├── find_keywords.py
-├── ...
-```
+├─ data/
+│   ├─ credentials.json  ← ここに配置
+│   ├─ backup/
+│   ├─ history/
+│   ├─ log/
+│   ├─ logs/
+│   ├─ media_man/
+│   ├─ report/
+│   ├─ serialization/
+│   ├─ upload/
+│   └─ work/
 
 ## ステップ5: Bloggerブログの情報を取得
 
@@ -142,12 +139,12 @@ htmltobrogger/
 
 ### 5.2 ブログIDを設定
 初回起動時に設定ウィザードが表示されるため、手動設定は必須ではありません。
-手動で設定する場合は、`config.json5`の`[OPEN_BLOGGER]`セクションを編集します：
+手動で設定する場合は、`data/config.json5`の`upload_art`セクションを編集します：
 
-```ini
-[OPEN_BLOGGER]
-ENABLED = true
-BLOG_ID = 1234567890123456789
+```json5
+upload_art: {
+  blog_id: 1234567890123456789,
+}
 ```
 
 ## ステップ6: 初回認証フロー
@@ -167,7 +164,7 @@ python html_tobrogger.py
 
 ### 6.3 トークンの自動保存
 
-1. 初回認証が完了すると、`token.pickle`が自動生成されます
+1. 初回認証が完了すると、`data/token.pickle`が自動生成されます
 2. このファイルには認証トークンが保存されます
 3. 次回以降は自動的に認証情報が使用されます
 
@@ -193,7 +190,7 @@ pip install -r requirements.txt
 ### Q: 「403 Permission Denied」エラー
 
 A: 以下を確認：
-1. `credentials.json`がプロジェクトルートに配置されているか
+1. `credentials.json`が`data/`フォルダに配置されているか
 2. Google CloudでBlogger API v3が有効化されているか
 3. テストユーザーに自分のメールアドレスが追加されているか
 
@@ -232,7 +229,8 @@ Google Blogger APIには**2種類のリクエスト制限**があります：
 - **ユーザー単位**: 1日あたり1,000,000ユーザー呼び出し
 - **プロジェクト単位**: 1日あたり2,000,000ユーザー呼び出し
 - **リセット時刻**: 太平洋時間（PT）午前0時（日本時間 16:00-17:00頃）
-- **API使用時の投稿**: 1日あたり45件（2026/02/18実測）
+- **API使用時の投稿**: 1日あたり45件が推奨設定
+  （config.json5の max_posts_per_run: 45）
 
 ### ⚡ 2. Rate Limit（バースト・レート）
 
@@ -245,8 +243,8 @@ Google Blogger APIには**2種類のリクエスト制限**があります：
 - 短時間に大量のリクエストを送ると、1日の上限に達していなくても「異常検知」としてアカウントが一時停止される可能性があります
 
 ✅ **本ツールの安全設計**:
-- デフォルト設定: **11.1秒間隔**（約0.091 QPS）
-- 1回の実行: **最大40件**
+- デフォルト設定: **11.1秒間隔**（約0.09 QPS）
+- 1回の実行: **最大45件**
 - Blogger API標準のRate Limit（1 QPS）に準拠
 
 ### Quotas確認手順
@@ -309,7 +307,7 @@ Google Cloud Consoleで現在の使用状況を確認できます：
 
 1. 以下のファイルを削除：
    ```bash
-   rm token.pickle
+   rm data/token.pickle
    ```
 
 2. Google Cloud Consoleで古いOAuth認証情報を削除（オプション）
@@ -331,4 +329,4 @@ Google Cloud Consoleで現在の使用状況を確認できます：
 
 ---
 
-**最終更新**: 2026年1月28日
+**最終更新**: 2026年2月23日
