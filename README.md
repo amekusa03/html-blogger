@@ -3,6 +3,14 @@
 ローカルにあるHTMLファイルと画像を、自動的に処理してBloggerに投稿するためのデスクトップアプリケーションです。
 HTMLのクリーニング、画像への透かし追加、キーワードや位置情報の付与、そしてBloggerへのアップロードを実行します。
 
+## Qiita記事
+
+[本ツールの解説記事 (Qiita)](https://qiita.com/amekusa03/items/b8ac77cd3dd6e6cc65aa)
+
+## 紹介動画
+
+[![紹介動画](https://img.youtube.com/vi/gFgYCVHIfW0/maxresdefault.jpg)](https://youtu.be/gFgYCVHIfW0?si=fby7oARRbfOy2K4K)
+
 ## 主な機能
 
 *   **HTMLクリーニング**: 投稿に不要なタグの削除、フォーマットの正規化。
