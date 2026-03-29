@@ -1,164 +1,164 @@
-# トラブルシューティングガイド
+# Troubleshooting Guide
 
-⚠️ **本ドキュメントは開発版のトラブルシューティングです** - まだ動作確認が完全には完了していません。
+⚠️ **This document is for troubleshooting the development version** – functionality has not been fully verified yet.
 
-このドキュメントで解決しない問題については、以下をお試しください：
-1. [GitHub Issues](https://github.com/amekusa03/html-blogger/issues) で既知の問題を検索
-2. 新しい Issue を作成して、開発チームに報告
+If your issue is not resolved by this document, please try the following:
+1. Search for known issues on [GitHub Issues](https://github.com/amekusa03/html-blogger/issues)
+2. Create a new issue and report it to the development team
 
-HTMLtoBloggerで発生しやすい問題と解決策をまとめています。
+This guide summarizes common problems and solutions when using HTMLtoBlogger.
 
-## よくある問題
+## Common Issues
 
-### 1. インストール・セットアップ関連
+### 1. Installation & Setup
 
-#### Q: `ModuleNotFoundError: No module named 'xxx'` エラーが出る
+#### Q: I get a `ModuleNotFoundError: No module named 'xxx'` error
 
-**原因**: 必要なPythonパッケージがインストールされていません
+**Cause**: Required Python packages are not installed
 
-**解決策**:
+**Solution**:
 ```bash
-# 仮想環境を有効化
+# Activate virtual environment
 source venv/bin/activate  # Linux/Mac
-# または
+# or
 venv\Scripts\activate  # Windows
 
-# パッケージをインストール
+# Install packages
 pip install -r requirements.txt
 
-# バージョン確認（オプション）
+# Check versions (optional)
 pip list
 ```
 
 ---
 
-#### Q: `command not found: python3` または `python: command not found`
+#### Q: `command not found: python3` or `python: command not found`
 
-**原因**: Pythonがインストールされていないか、PATHに設定されていません
+**Cause**: Python is not installed or not set in PATH
 
-**解決策**:
+**Solution**:
 
 **Linux/Mac:**
 ```bash
-# Pythonのインストール確認
+# Check Python installation
 python3 --version
 
-# インストールされていない場合
+# If not installed
 brew install python3  # Mac
-# または
+# or
 apt-get install python3 python3-venv  # Ubuntu/Debian
 ```
 
 **Windows:**
-1. [python.org](https://www.python.org/downloads/) からダウンロード
-2. インストール時に「Add Python to PATH」をチェック
-3. インストール完了後、コマンドプロンプトを再起動
+1. Download from [python.org](https://www.python.org/downloads/)
+2. Check “Add Python to PATH” during installation
+3. Restart Command Prompt after installation
 
 ---
 
-#### Q: 仮想環境が有効化されない
+#### Q: Virtual environment won’t activate
 
-**原因**: 仮想環境が正しく作成されていません
+**Cause**: Virtual environment was not created properly
 
-**解決策**:
+**Solution**:
 ```bash
-# 既存の仮想環境を削除
+# Remove existing virtual environment
 rm -rf venv
 
-# 新しい仮想環境を作成
+# Create a new one
 python3 -m venv venv
 
-# 有効化
+# Activate
 source venv/bin/activate  # Linux/Mac
-# または
+# or
 venv\Scripts\activate  # Windows
 
-# 確認（プロンプトに (venv) が表示されるはず）
+# Confirm ((venv) should appear in prompt)
 ```
 
 ---
 
-### 2. Google認証関連
+### 2. Google Authentication
 
 #### Q: `FileNotFoundError: credentials.json not found`
 
-**原因**: `credentials.json`がプロジェクトフォルダに配置されていません
+**Cause**: `credentials.json` is not placed in the project folder
 
-**解決策**:
-1. [Google Cloud Console](https://console.cloud.google.com) にアクセス
-2. 「APIとサービス」→「認証情報」で OAuth クライアント ID をダウンロード
-3. ダウンロードしたファイルを `credentials.json` に名前変更
-4. `data/` フォルダに配置
+**Solution**:
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Download OAuth Client ID from “APIs & Services” → “Credentials”
+3. Rename the downloaded file to `credentials.json`
+4. Place it in the `data/` folder
 
-📝 **詳細**: [SETUP.md](SETUP.md) ステップ4を参照
-
----
-
-#### Q: `403 Permission Denied` エラー
-
-**原因**: 以下のいずれか：
-- Blogger API が有効化されていない
-- OAuth同意画面が正しく設定されていない
-- テストユーザーが追加されていない
-
-**解決策**:
-
-1. Google Cloud Console で Blogger API v3 が有効化されているか確認
-   ```
-   APIとサービス → ライブラリ → "Blogger API" で検索
-   ```
-
-2. OAuth同意画面を確認
-   ```
-   APIとサービス → OAuth同意画面 → 編集
-   ```
-
-3. テストユーザーに自分のメールアドレスが追加されているか確認
-   ```
-   APIとサービス → OAuth同意画面 → テストユーザー
-   ```
-
-📝 **詳細**: [SETUP.md](SETUP.md) ステップ2-4を参照
+📝 **Details**: See Step 4 in [SETUP.md](SETUP.md)
 
 ---
 
-#### Q: `token.pickle` が生成されない
+#### Q: `403 Permission Denied` error
 
-**原因**: 初回認証フローが完了していません
+**Cause**: One of the following:
+- Blogger API is not enabled
+- OAuth consent screen is not configured correctly
+- Test user is not added
 
-**解決策**:
-1. `python html_tobrogger.py` でGUIを起動
-2. 「次へ」ボタンを押して処理を進め、アップロード段階まで進む
-3. ブラウザで Google 認証を完了
-4. `token.pickle`が自動生成されるのを待つ
+**Solution**:
 
-⚠️ **注意**: インターネット接続が必要です
+1. Check if Blogger API v3 is enabled in Google Cloud Console
+   ```
+   APIs & Services → Library → Search "Blogger API"
+   ```
+
+2. Check OAuth consent screen
+   ```
+   APIs & Services → OAuth consent screen → Edit
+   ```
+
+3. Check if your email is added as a test user
+   ```
+   APIs & Services → OAuth consent screen → Test users
+   ```
+
+📝 **Details**: See Steps 2–4 in [SETUP.md](SETUP.md)
 
 ---
 
-#### Q: `token.pickle` をリセットしたい
+#### Q: `token.pickle` is not generated
 
-**解決策**:
+**Cause**: Initial authentication flow has not completed
+
+**Solution**:
+1. Run `python html_tobrogger.py` to launch GUI
+2. Click “Next” and proceed to upload stage
+3. Complete Google authentication in browser
+4. Wait for `token.pickle` to be generated automatically
+
+⚠️ **Note**: Internet connection is required
+
+---
+
+#### Q: I want to reset `token.pickle`
+
+**Solution**:
 ```bash
-# トークンを削除
+# Delete token
 rm data/token.pickle
 
-# 次回起動時に再認証が促されます
+# You will be prompted to re-authenticate next time
 ```
 
 ---
 
-### 3. HTMLファイル処理関連
+### 3. HTML File Processing
 
-#### Q: HTMLファイルが処理されない
+#### Q: HTML files are not processed
 
-**原因**: 以下のいずれか：
-- `reports/` フォルダに HTML ファイルがない
-- ファイルが .html 拡張子ではない
+**Cause**:
+- No HTML files in `reports/` folder
+- Files do not have `.html` extension
 
-**解決策**:
+**Solution**:
 
-1. ファイルを確認
+1. Check files
 ```
 report/
 ├── 0205tai/          
@@ -167,106 +167,106 @@ report/
 │   └── index.html
 ```
 
-2. リンクについて
-#　画像のリンクはreport内で収まるようにして下さい
+2. About links  
+# Ensure image links stay within the report directory
 
 ---
 
-#### Q: キーワードが追加されない
+#### Q: Keywords are not added
 
-**原因**: `keywords.xml` が見つからないか、形式が正しくない
+**Cause**: `keywords.xml` not found or incorrectly formatted
 
-**解決策**:
+**Solution**:
 
-1. `data/keywords.xml`を確認
+1. Check `data/keywords.xml`
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <keywords>
     <Mastkeywords>
-        <word>キーワード1</word>
-        <word>キーワード2</word>
+        <word>Keyword1</word>
+        <word>Keyword2</word>
     </Mastkeywords>
     <Hitkeywords>
-        <word>キーワード3</word>
+        <word>Keyword3</word>
     </Hitkeywords>
 </keywords>
 ```
 
-2. `data/location.xml`の形式を確認
+2. Check `data/location.xml` format
 ```xml
 <?xml version='1.0' encoding='utf-8'?>
 <root>
     <location>
-        <name>タイ</name>
+        <name>Thailand</name>
         <latitude>15.8700</latitude>
         <longitude>100.9925</longitude>
     </location>
 </root>
 ```
 
-3. ファイルの文字エンコーディングが UTF-8 か確認
+3. Ensure file encoding is UTF-8
 
 ---
 
-#### Q: 位置情報（地理タグ）が付与されない
+#### Q: Geotags are not added
 
-**原因**: 以下のいずれか：
-- HTMLのタイトルや見出しに地域名が含まれていない
-- `locate.xml`の形式が正しくない
-- OpenStreetMap (Nominatim) が地域名を認識できない
+**Cause**:
+- Region name not included in HTML title or headings
+- `location.xml` format incorrect
+- OpenStreetMap (Nominatim) cannot recognize the region
 
-**解決策**:
+**Solution**:
 
-1. HTMLのタイトルを確認
+1. Check HTML title
 ```html
-<title>タイの観光地</title>  <!-- "タイ" が認識される -->
+<title>Tourist attractions in Thailand</title>
 ```
 
-2. `data/location.xml`の形式を確認
+2. Check `data/location.xml`
 ```xml
 <?xml version='1.0' encoding='utf-8'?>
 <root>
     <location>
-        <name>タイ</name>
+        <name>Thailand</name>
         <latitude>15.8700</latitude>
         <longitude>100.9925</longitude>
     </location>
 </root>
 ```
 
-3. 地域名を手動で追加
-- テキストエディタで `data/location.xml` を開く
-- 必要な位置情報を追加
+3. Add location manually  
+- Open `data/location.xml` in text editor  
+- Add required location data  
 
-4. OpenStreetMap で検証
-- https://www.openstreetmap.org/search で地域名を検索
-- 座標を確認して `data/location.xml` に追加
-
----
-
-#### Q: `<georss:point>` タグが削除されている
-
-**原因**: HTML クリーニング時にタグが削除されました
-
-**解決策**:
-1. タイトルに地域名を含める（自動再取得）
-2. 手動で `data/location.xml` に位置情報を追加
-3. 処理を再実行
+4. Verify with OpenStreetMap  
+- Search region at https://www.openstreetmap.org/search  
+- Add coordinates to `data/location.xml`
 
 ---
 
-### 4. 画像処理関連
+#### Q: `<georss:point>` tag is removed
 
-#### Q: 画像がアップロードされない
+**Cause**: Removed during HTML cleaning
 
-**原因**: 以下のいずれか：
-- `image/` フォルダに画像ファイルがない
-- ファイル名のマッピングが間違っている
-- Blogger メディア マネージャーのHTMLファイルがない
+**Solution**:
+1. Include region name in title (auto re-fetch)
+2. Add location manually in `data/location.xml`
+3. Re-run processing
 
-**解決策**:
+---
 
-1. ファイル構造を確認
+### 4. Image Processing
+
+#### Q: Images are not uploaded
+
+**Cause**:
+- No image files in `image/` folder
+- Filename mapping incorrect
+- Blogger media manager HTML file missing
+
+**Solution**:
+
+1. Check file structure
 ```bash
 image/
 ├── 0205taiphoto01.jpg
@@ -274,151 +274,137 @@ image/
 └── ...
 ```
 
-2. メディア マネージャー HTML を確認
-- Blogger → メディア → ファイルを開く
-- HTMLファイルが自動ダウンロードされているか確認
+2. Check media manager HTML  
+- Blogger → Media → Open file  
+- Ensure HTML file was downloaded  
 
-3. リネーム規則を確認
+3. Check renaming rules
 ```
-元の位置: reports/0205tai/photo01.jpg
-リネーム後: image/0205taiphoto01.jpg
-          ↑ フォルダ名 + ファイル名
+Original: reports/0205tai/photo01.jpg  
+Renamed: image/0205taiphoto01.jpg  
 ```
 
 ---
 
-#### Q: EXIF データが削除されない
+#### Q: EXIF data is not removed
 
-**原因**: 対応していない画像形式
+**Cause**: Unsupported image format
 
-**解決策**:
-
-1. 画像形式を確認
-- JPEG, PNG, GIF のみ対応
-- その他の形式は処理スキップ
+**Solution**:
+- Supported: JPEG, PNG, GIF only  
+- Others are skipped  
 
 ---
 
-#### Q: ウォーターマーク が表示されない
+#### Q: Watermark not displayed
 
-**原因**: 以下のいずれか：
-- `config.json5` でウォーターマーク機能が無効化されている
-- フォントがインストールされていない
+**Cause**:
+- Watermark disabled in `config.json5`
+- Font not installed
 
-**解決策**:
+**Solution**:
 
-1. `data/config.json5` を確認
+1. Check `data/config.json5`
 ```json5
-  // 画像加工設定
-  mod_image: {
-    watermark_text: 'サンプル',  // 透かしテキスト
-  },
+mod_image: {
+  watermark_text: 'Sample',
+},
 ```
 
-2. フォント を確認（Linux の場合）
+2. Install fonts (Linux)
 ```bash
-# フォントをインストール
 sudo apt-get install fonts-liberation
 ```
 
-3. ウォーターマークテキストを短くする（可視性向上）
+3. Shorten watermark text
 
 ---
 
-### 5. アップロード関連
+### 5. Upload Issues
 
-#### Q: ブログに投稿されない
+#### Q: Posts are not published
 
-**原因**: 以下のいずれか：
-- BLOG_ID が設定されていない
-- 認証情報が無効
-- API割り当てに達した
+**Cause**:
+- BLOG_ID not set
+- Invalid credentials
+- API quota exceeded
 
-**解決策**:
+**Solution**:
 
-1. BLOG_ID を確認
+1. Check BLOG_ID
 ```bash
-# Blogger → ダッシュボード → URL確認
 # https://www.blogger.com/blog/posts/{BLOG_ID}
-# BLOG_ID を data/config.json5 に設定
 ```
 
-2. 認証情報を確認
+2. Reset credentials
 ```bash
 rm data/token.pickle
-# 次回起動時に再認証
 ```
 
-3. API割り当てを確認
-- Google Cloud Console → APIs and Services → Quotas
-- Blogger API の 使用状況 を確認
-- 超過している場合は翌日再試行
+3. Check API quota in Google Cloud Console
 
 ---
 
-#### Q: `Quota exceeded` エラー
+#### Q: `Quota exceeded` error
 
-**原因**: Google Blogger API の割り当てに達しました
+**Cause**: Blogger API quota reached
 
-**解決策**:
-- 日本時間17:00以降に再実行（割り当てはリセットされます）
-- または Google Cloud Console で割り当てを増加申請
+**Solution**:
+- Retry after 17:00 JST (quota resets)
+- Request quota increase
 
 ---
 
-#### Q: `Invalid request` エラー
+#### Q: `Invalid request` error
 
-**原因**:  フィード形式が正しくない
+**Cause**: Incorrect feed format
 
-**解決策**:
-1. `data/upload/` のhtmlファイルを確認
-2. ブラウザーで正常に表示できるか確認
-3. 必須フィールドが含まれているか確認：
+**Solution**:
+1. Check `data/upload/` HTML
+2. Open in browser
+3. Ensure required tags:
    - `<html>`
    - `<head>`
 
 ---
 
-### 6. GUI関連
+### 6. GUI Issues
 
-#### Q: ボタンをクリックしても何も起こらない
+#### Q: Clicking buttons does nothing
 
-**原因**: 処理がバックグラウンドで実行中
+**Cause**: Background processing
 
-**解決策**:
-- ターミナルでのプロセス実行完了を待つ
-- ステータスウィンドウでログを確認
+**Solution**:
+- Wait for completion
+- Check logs
 
 ---
 
-#### Q: ウィンドウがハング（フリーズ）している
+#### Q: Window freezes
 
-**原因**: 重い処理中（HTML解析、Nominatim検索など）
+**Cause**: Heavy processing
 
-**解決策**:
+**Solution**:
 ```bash
-# 強制終了（ターミナルで Ctrl+C）
 Ctrl+C
-
-# アプリケーション再起動
 python html_tobrogger.py
 ```
 
 ---
 
-#### Q: テキストが文字化けしている
+#### Q: Text is garbled
 
-**原因**: ターミナルのエンコーディングが UTF-8 ではない
+**Cause**: Terminal encoding not UTF-8
 
-**解決策**:
+**Solution**:
 
-**Linux/Mac**:
+**Linux/Mac:**
 ```bash
 export LANG=ja_JP.UTF-8
 python html_tobrogger.py
 ```
 
-**Windows (PowerShell)**:
+**Windows:**
 ```powershell
 $env:PYTHONIOENCODING = "utf-8"
 python html_tobrogger.py
@@ -426,40 +412,38 @@ python html_tobrogger.py
 
 ---
 
-### 7. パフォーマンス関連
+### 7. Performance Issues
 
-#### Q: 処理が遅い
+#### Q: Processing is slow
 
-**原因**: 以下のいずれか：
-- HTMLファイルが大きい
-- 画像数が多い
-- インターネット接続が遅い
-- Nominatim レート制限（1.1秒/リクエスト）
+**Cause**:
+- Large HTML files
+- Many images
+- Slow internet
+- Nominatim rate limit
 
-**解決策**:
-- HTMLを小さなチャンクに分割
-- 画像解像度を下げる
-- インターネット接続を確認
-- 処理を分割実行（複数日にかけて）
-
----
-
-#### Q: メモリ不足 (MemoryError)
-
-**原因**: 非常に大きいHTMLファイルまたは画像
-
-**解決策**:
-- ファイルを分割
-- 仮想メモリを増加（OS設定）
-- 不要なプロセスを終了
+**Solution**:
+- Split HTML files
+- Reduce image resolution
+- Improve connection
+- Process in batches
 
 ---
 
-## 高度なトラブルシューティング
+#### Q: MemoryError
 
-### デバッグログを有効化
+**Cause**: Very large files
 
-各スクリプトに以下を追加：
+**Solution**:
+- Split files
+- Increase virtual memory
+- Close unused processes
+
+---
+
+## Advanced Troubleshooting
+
+### Enable debug logs
 
 ```python
 import logging
@@ -467,37 +451,34 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# コード内で
-logger.debug(f"デバッグ情報: {variable}")
-logger.error(f"エラー: {error}")
+logger.debug(f"Debug: {variable}")
+logger.error(f"Error: {error}")
 ```
 
-### ターミナル出力をファイルに保存
+### Save terminal output
 
 ```bash
 python html_tobrogger.py > debug.log 2>&1
 ```
 
-### XML を検証
+### Validate XML
 
 ```bash
-# Linux/Mac
 xmllint --noout data/keywords.xml
 xmllint --noout data/location.xml
 ```
 
 ---
 
-## さらにサポートが必要な場合
+## Need More Help?
 
-1. [GitHub Issues](https://github.com/amekusa03/html-blogger/issues) で同様の問題を検索
-2. エラーメッセージ全文をコピーして新しい Issue を作成
-3. 以下の情報を含める：
-   - OS とバージョン
-   - Python バージョン（`python --version`）
-   - エラー再現の手順
-   - スクリーンショットまたはログファイル
+1. Search on GitHub Issues  
+2. Create a new issue with:
+   - OS and version  
+   - Python version  
+   - Steps to reproduce  
+   - Screenshots/logs  
 
 ---
 
-**最終更新**: 2026年2月23日
+**Last updated**: February 23, 2026
