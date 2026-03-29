@@ -1,120 +1,121 @@
-# Google Cloud & Blogger API セットアップガイド
+# Google Cloud & Blogger API Setup Guide
 
-⚠️ **このセットアップはオプションです** - まず [QUICKSTART.md](QUICKSTART.md) で動作確認を完了してから、Google Cloud設定に進むことをお勧めします。
+⚠️ **This setup is optional** — It is recommended to first complete the operation check in [QUICKSTART.md](QUICKSTART.md) before proceeding with Google Cloud configuration.
 
-## 概要
+## Overview
 
-このドキュメントは、HTMLtoBloggerを使用するために必要なGoogle CloudプロジェクトとBlogger API v3の設定手順を説明します。
+This document explains the steps to set up the Google Cloud project and Blogger API v3 required to use HTMLtoBlogger.
 
-## 前提条件
+## Prerequisites
 
-- Googleアカウント（@gmail.com）
-- 投稿対象のBloggerブログ（投稿権限があること）
-- インターネット接続
+- Google account (@gmail.com)
+- A Blogger blog to post to (you must have posting permissions)
+- Internet connection
 
-## ステップ1: Google Cloudプロジェクトの作成
+## Step 1: Create a Google Cloud Project
 
-### 1.1 Google Cloud Consoleにアクセス
+### 1.1 Access Google Cloud Console
 
 ```
 https://console.cloud.google.com
 ```
 
-ブラウザで上記URLにアクセスし、Googleアカウントでログインします。
+Open the above URL in your browser and log in with your Google account.
 
-### 1.2 新しいプロジェクトを作成
+### 1.2 Create a New Project
 
-1. ページ上部の「プロジェクト選択」をクリック
-2. 「新しいプロジェクト」ボタンをクリック
-3. 以下を入力：
-   - **プロジェクト名**: `HTMLtoBlogger` （任意の名前）
-   - **組織**: デフォルトのまま
-4. 「作成」をクリック
+1. Click “Select a project” at the top of the page  
+2. Click the “New Project” button  
+3. Enter the following:  
+   - **Project name**: `HTMLtoBlogger` (any name is fine)  
+   - **Organization**: Leave as default  
+4. Click “Create”
 
-### 1.3 プロジェクトを選択
+### 1.3 Select the Project
 
-作成が完了すると、自動的に新しいプロジェクトに切り替わります。
+Once creation is complete, it will automatically switch to the new project.
 
-## ステップ2: Blogger API v3を有効化
+## Step 2: Enable Blogger API v3
 
-### 2.1 APIライブラリを開く
+### 2.1 Open API Library
 
-左側のナビゲーションメニューから：
+From the left navigation menu:
 ```
-APIとサービス → ライブラリ
+APIs & Services → Library
 ```
 
-### 2.2 Blogger APIを検索・有効化
+### 2.2 Search and Enable Blogger API
 
-1. 検索ボックスに「Blogger API」と入力
-2. 検索結果から「Blogger API v3」を選択
-3. 「有効にする」ボタンをクリック
-4. 有効化が完了するまで待機（数秒）
+1. Enter “Blogger API” in the search box  
+2. Select “Blogger API v3” from the results  
+3. Click the “Enable” button  
+4. Wait for activation to complete (a few seconds)
 
-## ステップ3: OAuth 2.0認証情報を設定
+## Step 3: Configure OAuth 2.0 Credentials
 
-### 3.1 OAuth同意画面を設定
+### 3.1 Set Up OAuth Consent Screen
 
-1. 左側メニューから：
+1. From the left menu:
    ```
-   APIとサービス → OAuth同意画面
+   APIs & Services → OAuth consent screen
    ```
 
-2. **User Type**として「外部」を選択
-3. 「作成」をクリック
+2. Select “External” as **User Type**  
+3. Click “Create”
 
-### 3.2 OAuth同意画面の詳細を入力
+### 3.2 Enter OAuth Consent Screen Details
 
-**必須フィールド:**
+**Required fields:**
 
-| フィールド | 入力内容 | 例 |
-|-----------|--------|-----|
-| **アプリ名** | アプリケーションの名前 | `HTMLtoBlogger` |
-| **ユーザーサポートメール** | サポート用メールアドレス | `your-email@gmail.com` |
-| **デベロッパー連絡先情報** | あなたのメールアドレス | `your-email@gmail.com` |
+| Field | Input | Example |
+|------|------|--------|
+| **App name** | Application name | `HTMLtoBlogger` |
+| **User support email** | Support email address | `your-email@gmail.com` |
+| **Developer contact information** | Your email address | `your-email@gmail.com` |
 
-4. 「保存して続行」をクリック
+4. Click “Save and Continue”
 
-### 3.3 スコープを設定（オプション）
+### 3.3 Set Scopes (Optional)
 
-- デフォルトのまま「保存して続行」をクリック
-- 次のページでも「保存して続行」をクリック
+- Click “Save and Continue” with default settings  
+- Click “Save and Continue” again on the next page  
 
-### 3.4 テストユーザーを追加
+### 3.4 Add Test Users
 
-1. 「テストユーザー」セクションで「+ ユーザーを追加」をクリック
-2. 自分のGoogleメールアドレスを入力
-3. 「追加」をクリック
-4. 「保存して続行」をクリック
+1. In the “Test users” section, click “+ Add Users”  
+2. Enter your Google email address  
+3. Click “Add”  
+4. Click “Save and Continue”
 
-## ステップ4: デスクトップアプリの認証情報を作成
+## Step 4: Create Desktop App Credentials
 
-### 4.1 認証情報ページへ移動
+### 4.1 Go to Credentials Page
 
 ```
-APIとサービス → 認証情報
+APIs & Services → Credentials
 ```
 
-### 4.2 OAuth クライアントIDを作成
+### 4.2 Create OAuth Client ID
 
-1. 「+ 認証情報を作成」をクリック
-2. ドロップダウンから「OAuth クライアント ID」を選択
-3. 以下を設定：
-   - **アプリケーションの種類**: 「デスクトップアプリ」を選択
-   - **名前**: `HTMLtoBlogger Desktop` （任意）
-4. 「作成」をクリック
+1. Click “+ Create Credentials”  
+2. Select “OAuth client ID” from the dropdown  
+3. Configure as follows:  
+   - **Application type**: Select “Desktop app”  
+   - **Name**: `HTMLtoBlogger Desktop` (any name is fine)  
+4. Click “Create”
 
-### 4.3 認証情報をダウンロード
+### 4.3 Download Credentials
 
-1. 作成完了後、ダウンロードボタン（↓アイコン）をクリック
-2. JSONファイルが自動ダウンロードされます
-3. ファイル名を `credentials.json` に変更
-4. `data/` フォルダに配置
+1. After creation, click the download button (↓ icon)  
+2. A JSON file will be downloaded automatically  
+3. Rename the file to `credentials.json`  
+4. Place it in the `data/` folder  
 
+```
 htmltobrogger/
 ├─ html_tobrogger.py
 ├─ data/
-│   ├─ credentials.json  ← ここに配置
+│   ├─ credentials.json  ← place here
 │   ├─ backup/
 │   ├─ history/
 │   ├─ log/
@@ -124,22 +125,24 @@ htmltobrogger/
 │   ├─ serialization/
 │   ├─ upload/
 │   └─ work/
+```
 
-## ステップ5: Bloggerブログの情報を取得
+## Step 5: Get Blogger Blog Information
 
-### 5.1 ブログIDの確認
+### 5.1 Check Blog ID
 
-1. [Bloggerダッシュボード](https://www.blogger.com) にアクセス
-2. 対象のブログを選択
-3. ブラウザのURL欄を確認：
+1. Access the Blogger dashboard: https://www.blogger.com  
+2. Select your target blog  
+3. Check the browser URL:
    ```
    https://www.blogger.com/blog/posts/{BLOG_ID}
    ```
-   `{BLOG_ID}` の数字をメモしておきます
+   Note down the number in `{BLOG_ID}`
 
-### 5.2 ブログIDを設定
-初回起動時に設定ウィザードが表示されるため、手動設定は必須ではありません。
-手動で設定する場合は、`data/config.json5`の`upload_art`セクションを編集します：
+### 5.2 Set Blog ID
+
+A setup wizard will appear on first launch, so manual configuration is not required.  
+To configure manually, edit the `upload_art` section in `data/config.json5`:
 
 ```json5
 upload_art: {
@@ -147,186 +150,183 @@ upload_art: {
 }
 ```
 
-## ステップ6: 初回認証フロー
+## Step 6: Initial Authentication Flow
 
-### 6.1 アプリケーションを起動
+### 6.1 Launch the Application
 
 ```bash
 python html_tobrogger.py
 ```
 
-### 6.2 初回認証
+### 6.2 First-Time Authentication
 
-1. アップロード処理を試行すると、ブラウザが自動で開きます
-2. Googleアカウントの選択画面が表示されます
-3. 「HTMLtoBlogger」アプリへのアクセスを許可するよう求められます
-4. 「許可」をクリック
+1. When attempting upload, a browser will open automatically  
+2. A Google account selection screen will appear  
+3. You will be asked to grant access to the “HTMLtoBlogger” app  
+4. Click “Allow”
 
-### 6.3 トークンの自動保存
+### 6.3 Automatic Token Storage
 
-1. 初回認証が完了すると、`data/token.pickle`が自動生成されます
-2. このファイルには認証トークンが保存されます
-3. 次回以降は自動的に認証情報が使用されます
+1. After authentication, `data/token.pickle` will be generated automatically  
+2. This file stores the authentication token  
+3. It will be used automatically in subsequent runs  
 
-⚠️ **注意**: `token.pickle`は秘密ファイルです。GitHubなどに公開しないでください。`.gitignore`で除外されています。
+⚠️ **Note**: `token.pickle` is a secret file. Do not publish it on GitHub. It is excluded via `.gitignore`.
 
-## ステップ7: トークンのリフレッシュ
+## Step 7: Token Refresh
 
-認証トークンは一定期間後に期限切れになります。その場合：
+Authentication tokens expire after a certain period. In that case:
 
-1. 次のアップロード時に自動的にリフレッシュされます
-2. 再度ブラウザで認証するよう求められる場合があります
-3. 上記ステップ6.2-6.3を繰り返してください
+1. They will be refreshed automatically during the next upload  
+2. You may be asked to authenticate again in the browser  
+3. Repeat steps 6.2–6.3  
 
-## トラブルシューティング
+## Troubleshooting
 
-### Q: 「No module named google」エラーが出る
+### Q: “No module named google” error
 
-A: 依存パッケージをインストールしてください：
+A: Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-### Q: 「403 Permission Denied」エラー
+### Q: “403 Permission Denied” error
 
-A: 以下を確認：
-1. `credentials.json`が`data/`フォルダに配置されているか
-2. Google CloudでBlogger API v3が有効化されているか
-3. テストユーザーに自分のメールアドレスが追加されているか
+A: Check the following:
+1. `credentials.json` is placed in the `data/` folder  
+2. Blogger API v3 is enabled in Google Cloud  
+3. Your email is added as a test user  
 
-### Q: token.pickle が生成されない
+### Q: token.pickle is not generated
 
-A: 以下を確認：
-1. `credentials.json`の形式が正しいか
-2. インターネット接続が確立されているか
-3. Google Cloudのクォータ制限に達していないか
+A: Check:
+1. `credentials.json` format is correct  
+2. Internet connection is available  
+3. Google Cloud quota limits are not exceeded  
 
-### Q: ブラウザが自動で開かない
+### Q: Browser does not open automatically
 
-A: 以下を試してください：
-1. ターミナル出力のURLをコピーして手動で開く
-2. システムのブラウザ設定を確認
-3. Windows Subsystem for Linux (WSL)の場合は、`xdg-open`の設定を確認
+A: Try:
+1. Copy the URL from the terminal output and open it manually  
+2. Check system browser settings  
+3. If using Windows Subsystem for Linux (WSL), check `xdg-open` settings  
 
-## セキュリティに関する注意
+## Security Notes
 
-⚠️ **絶対にしてはいけないこと:**
-- ❌ GitHubなどのパブリックリポジトリに`credentials.json`をコミット
-- ❌ 他人に`credentials.json`や`token.pickle`を共有
-- ❌ これらのファイルをメールで送信
+⚠️ **Never do the following:**
+- ❌ Commit `credentials.json` to public repositories like GitHub  
+- ❌ Share `credentials.json` or `token.pickle` with others  
+- ❌ Send these files via email  
 
-✅ **推奨事項:**
-- `.gitignore`にこれらのファイルが含まれていることを確認
-- 定期的に不要な認証情報を削除（Google Cloud Consoleから）
-- 複数のGoogle Cloudプロジェクトを使用する場合は、それぞれ分離してください
+✅ **Recommendations:**
+- Ensure these files are included in `.gitignore`  
+- Periodically delete unnecessary credentials (from Google Cloud Console)  
+- If using multiple Google Cloud projects, keep them separated  
 
-## API割り当て（Quotas / クォータ）
+## API Quotas
 
-Google Blogger APIには**2種類のリクエスト制限**があります：
+Google Blogger API has **two types of request limits**:
 
-### 📏 1. Daily Limit（1日の総量）
+### 📏 1. Daily Limit
 
-- **ユーザー単位**: 1日あたり1,000,000ユーザー呼び出し
-- **プロジェクト単位**: 1日あたり2,000,000ユーザー呼び出し
-- **リセット時刻**: 太平洋時間（PT）午前0時（日本時間 16:00-17:00頃）
-- **API使用時の投稿**: 1日あたり45件が推奨設定
-  （config.json5の max_posts_per_run: 45）
+- **Per user**: 1,000,000 calls per day  
+- **Per project**: 2,000,000 calls per day  
+- **Reset time**: Midnight Pacific Time (PT) (~16:00–17:00 JST)  
+- **Recommended posts via API**: 45 per day  
+  (`max_posts_per_run: 45` in config.json5)
 
-### ⚡ 2. Rate Limit（バースト・レート）
+### ⚡ 2. Rate Limit
 
-- **QPS（Queries Per Second）**: 1秒あたり約1リクエストまで
-- **100秒単位**: 1,000リクエストまで
-- **カウント方式**: スライディングウィンドウ（短時間に集中したリクエストを監視）
+- **QPS (Queries Per Second)**: ~1 request per second  
+- **Per 100 seconds**: Up to 1,000 requests  
+- **Counting method**: Sliding window  
 
-⚠️ **アカウントロックの原因**:
-- Daily Limitより**Rate Limitの方が厳しい**です
-- 短時間に大量のリクエストを送ると、1日の上限に達していなくても「異常検知」としてアカウントが一時停止される可能性があります
+⚠️ **Account lock causes:**
+- Rate limits are stricter than daily limits  
+- Sending many requests in a short time may trigger anomaly detection and temporarily suspend your account  
 
-✅ **本ツールの安全設計**:
-- デフォルト設定: **11.1秒間隔**（約0.09 QPS）
-- 1回の実行: **最大45件**
-- Blogger API標準のRate Limit（1 QPS）に準拠
+✅ **Tool safety design:**
+- Default: **11.1-second interval** (~0.09 QPS)  
+- Per run: **Max 45 posts**  
+- Compliant with Blogger API rate limits (1 QPS)  
 
-### Quotas確認手順
+### Quota Check Steps
 
-Google Cloud Consoleで現在の使用状況を確認できます：
+You can check usage in Google Cloud Console:
 
-1. **Google Cloud Consoleにアクセス**
+1. Access Google Cloud Console  
    ```
    https://console.cloud.google.com
    ```
 
-2. **プロジェクトを選択**
-   - 画面上部のプロジェクト選択から該当プロジェクトを選択
+2. Select your project  
 
-3. **APIとサービス → 割り当て に移動**
+3. Go to:
    ```
-   左メニュー → APIとサービス → 割り当て
+   APIs & Services → Quotas
    ```
 
-4. **Blogger APIでフィルタリング**
-   - 検索ボックスに「Blogger API」と入力
-   - 現在の使用状況と上限が表示されます
+4. Filter by Blogger API  
 
-5. **確認すべき項目**
-   - `Queries per day`: 1日の総リクエスト数
-   - `Queries per 100 seconds per user`: ユーザー単位のバースト制限
-   - `Queries per second per user`: 1秒あたりのリクエスト数（QPS）
+5. Check:
+   - `Queries per day`  
+   - `Queries per 100 seconds per user`  
+   - `Queries per second per user`  
 
-6. **リアルタイム監視（オプション）**
+6. **Real-time monitoring (optional)**  
    ```
-   左メニュー → APIとサービス → ダッシュボード → Blogger API
+   APIs & Services → Dashboard → Blogger API
    ```
-   - グラフで時間帯別のリクエスト数を確認できます
+   - View request counts by time  
 
-### 📊 使用量の目安
+### 📊 Usage Estimates
 
-本ツールの使用状況（デフォルト設定）：
+Default usage:
 
-| 実行回数 | 投稿件数 | 所要時間 | Daily Limit消費 |
-|---------|---------|---------|----------------|
-| 1回 | 5件 | 約6秒 | 0.0005% |
-| 10回 | 50件 | 約1分 | 0.005% |
-| 100回 | 500件 | 約9分 | 0.05% |
-| 1,000回 | 5,000件 | 約1.5時間 | 0.5% |
+| Runs | Posts | Time | Daily Limit Usage |
+|------|------|------|------------------|
+| 1 | 5 | ~6 sec | 0.0005% |
+| 10 | 50 | ~1 min | 0.005% |
+| 100 | 500 | ~9 min | 0.05% |
+| 1,000 | 5,000 | ~1.5 hr | 0.5% |
 
-**注意**: 上記は最大値です。実際は重複スキップやエラーで投稿数は少なくなります。
+**Note**: These are maximum values. Actual posts may be fewer due to skips or errors.
 
-### 🛡️ 安全なアップロード方法
+### 🛡️ Safe Upload Practices
 
-1. **少量テスト**: 最初は`MAX_POSTS_PER_RUN = 1`で動作確認
-2. **間隔調整**: エラーが出る場合は`DELAY_SECONDS = 2`に変更（より保守的に）
-3. **分散実行**: 大量アップロードは複数回に分けて実行
-4. **監視**: Google Cloud Consoleで使用量を定期確認
+1. **Test small**: Start with `MAX_POSTS_PER_RUN = 1`  
+2. **Adjust delay**: If errors occur, set `DELAY_SECONDS = 2`  
+3. **Distribute runs**: Split large uploads  
+4. **Monitor usage**: Check regularly in Google Cloud Console  
 
-## リセット方法
+## Reset Instructions
 
-何か問題が発生した場合、以下の手順でリセットできます：
+If issues occur:
 
-### 認証情報をリセット
+### Reset Credentials
 
-1. 以下のファイルを削除：
+1. Delete:
    ```bash
    rm data/token.pickle
    ```
 
-2. Google Cloud Consoleで古いOAuth認証情報を削除（オプション）
+2. Optionally delete old OAuth credentials in Google Cloud Console  
 
-3. アプリケーションを再起動すると、初回認証フローが再実行されます
+3. Restart the app to rerun authentication  
 
-### プロジェクト全体をリセット
+### Reset Entire Project
 
-1. Google Cloud Consoleでプロジェクトを削除
-2. ステップ1から再度実行
+1. Delete the project in Google Cloud Console  
+2. Repeat from Step 1  
 
-## サポート
+## Support
 
-問題が発生した場合：
+If issues occur:
 
-1. [トラブルシューティング](TROUBLESHOOTING.md)を確認
-2. Google Cloud [ドキュメント](https://cloud.google.com/docs) を参照
-3. [Blogger API リファレンス](https://developers.google.com/blogger)を確認
+1. Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md)  
+2. Refer to Google Cloud documentation: https://cloud.google.com/docs  
+3. Check Blogger API reference: https://developers.google.com/blogger  
 
 ---
 
-**最終更新**: 2026年2月23日
+**Last updated**: February 23, 2026

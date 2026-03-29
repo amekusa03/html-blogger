@@ -1,183 +1,185 @@
-# クイックスタート
+# HTML to Blogger
 
-5分で HTMLtoBlogger をセットアップして使い始めるためのガイド。
+Get up and running with HTML to Blogger in just 5 minutes.
 
-## ⚡ 最速セットアップ（5分）
+## ⚡ Quick Start (5 Minutes)
 
-### ステップ 1: リポジトリをクローン
+### Step 1: Clone the Repository
 ```bash
 git clone https://github.com/amekusa03/html-blogger.git
 cd html-blogger
 ```
 
-### ステップ 2: 仮想環境を作成
+### Step 2: Create a Virtual Environment
 ```bash
 python3 -m venv venv
 source venv/bin/activate  # Linux/Mac
-# または
+# or
 venv\Scripts\activate  # Windows
 ```
 
-### ステップ 3: 依存パッケージをインストール
+### Step 3: Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### ステップ 4: Google Cloud 認証ファイルを配置
-[SETUP.md](docs/SETUP.md) のステップ 4 に従って、`credentials.json` を `data/` フォルダにコピー。
+### Step 4: Place Google Cloud Credentials File
+Follow Step 4 in [SETUP.md](docs/SETUP.md) and copy `credentials.json` into the `data/` folder.
 
-### ステップ 5: アプリケーションを起動
+### Step 5: Launch the Application
 ```bash
 python html_tobrogger.py
 ```
 
-🖥️ **GUI ウィンドウが起動します。** 
+🖥️ **A GUI window will launch.** 
 
-⚠️ **起動確認チェックリスト**:
-- [ ] GUI ウィンドウが表示される
-- [ ] 「フォルダを開く」ボタンが反応する
-- [ ] `data/report/` フォルダが開く
+⚠️ **Startup Checklist**:
+- [ ] GUI window appears
+- [ ] “Open Folder” button responds
+- [ ] `data/report/` folder opens
 
 ---
 
-## 🧪 初回動作確認（重要！）
+## 🧪 Initial Test Run (Important!)
 
-**本格利用する前に、必ず小さなテスト HTML ファイルで動作確認してください：**
+**Before using it in production, be sure to test with a small HTML file:**
 
-1. **テストファイルを用意**
+1. **Prepare a test file**
    ```
    reports/test/
-   ├── test.html (100KB以下の小さいHTML)
-   └── test_image.jpg (小さい画像 1-2枚)
+   ├── test.html (small HTML under 100KB)
+   └── test_image.jpg (1–2 small images)
    ```
 
-2. **各ボタンを順番にクリック**してみる
-   - エラーが出ないか確認
-   - ログメッセージを確認
+2. **Click each button in order**
+   - Check for errors
+   - Review log messages
 
-3. **すべてが正常に完了したら、本格利用を開始**
-   - テストで問題が出た場合は [TROUBLESHOOTING.md](TROUBLESHOOTING.md) を参照
-   - 解決しない場合は [GitHub Issues](https://github.com/amekusa03/html-blogger/issues) で報告
+3. **If everything completes successfully, proceed to full use**
+   - If issues occur during testing, refer to [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+   - If unresolved, report on [GitHub Issues](https://github.com/amekusa03/html-blogger/issues)
 
-⚠️ **警告**: 動作確認なしに大量ファイルを処理するのは避けてください。予期しない動作が発生する可能性があります。
+⚠️ **Warning**: Avoid processing large batches of files without testing first. Unexpected behavior may occur.
 
 ---
 
-## 📋 基本的な使い方
+## 📋 Basic Usage
 
-### 1. HTML ファイルを準備
+### 1. Prepare HTML Files
 ```
 reports/
 ├── 0205tai/
-│   ├── index.html  ← ここにHTMLファイルを配置
+│   ├── index.html  ← Place your HTML file here
 │   ├── photo01.jpg
 │   └── photo02.jpg
 ```
 
-### 2. GUI でボタンを順番にクリック
+### 2. Click Buttons in the GUI in Order
 
 ```
-[フォルダを開く]
-    ↓ reports フォルダを表示
+[Open Folder]
+    ↓ Displays reports folder
     
-[開始]
-    ↓ キーワード・位置情報・クリーニング・画像処理を実行
-    ↓ ログウィンドウで進行状況を確認
+[Start]
+    ↓ Executes keywording, geolocation, cleaning, and image processing
+    ↓ Check progress in the log window
     
-[画像アップロード]
-    ↓ 加工済み画像を手動アップロード
+[Upload Images]
+    ↓ Manually upload processed images
 
-[画像リンク取得]
-    ↓ Blogger の メディアマネージャー情報手動ダウンロード
-    ↓ 記事との画像リンク作成    
+[Get Image Links]
+    ↓ Manually download Blogger media manager info
+    ↓ Create image links for the article    
     
-[アップロード]
-    ↓ Google Blogger API で自動投稿開始
+[Upload]
+    ↓ Starts automatic posting via Google Blogger API
 ```
 
-### 3. 完了確認
+### 3. Confirm Completion
 
 ```
-ブロガーサイトで下書きとして投稿されていれば完了です。
+If it appears as a draft post on your Blogger site, it’s complete.
+```
+
 ---
 
-## ⚙️ 必須設定
+## ⚙️ Required Configuration
 
-### 1. `data/config.json5` を編集
+### 1. Edit `data/config.json5`
 ```json5
 {
-    // 画像加工設定
+    // Image processing settings
     mod_image: {
-        watermark_text: 'サンプル',     // 透かしテキスト
+        watermark_text: 'Sample',     // Watermark text
     },
-    // 記事アップロード設定
+    // Article upload settings
     upload_art: {
-        blog_id: 1234567890123456789,   // ブログID
+        blog_id: 1234567890123456789,   // Blog ID
     }
 }
 ```
 
-### 2. `data/keywords.xml` を編集
+### 2. Edit `data/keywords.xml`
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <root>
     <Mastkeywords>
-        <word>キーワード1</word>
-        <word>キーワード2</word>
+        <word>Keyword1</word>
+        <word>Keyword2</word>
     </Mastkeywords>
 </root>
 ```
 
 ---
 
-## 🆘 うまくいかない場合
+## 🆘 If Things Don’t Work
 
-### ❌ モジュールエラーが出る場合
+### ❌ Module errors occur
 ```bash
 pip install -r requirements.txt
 ```
 
-### ❌ 認証エラーが出る場合
-1. [SETUP.md](docs/SETUP.md) を再読
-2. `credentials.json` が正しく配置されているか確認
-3. Google Cloud で Blogger API v3 が有効化されているか確認
+### ❌ Authentication errors occur
+1. Re-read [SETUP.md](docs/SETUP.md)
+2. Check that `credentials.json` is correctly placed
+3. Ensure Blogger API v3 is enabled in Google Cloud
 
-### ❌ その他の問題
-[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) を参照
+### ❌ Other issues
+Refer to [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
 ---
 
-## 📚 詳細ドキュメント
+## 📚 Detailed Documentation
 
-| ドキュメント | 内容 |
+| Document | Description |
 |------------|------|
-| [README.md](../README.md) | プロジェクト概要・機能一覧 |
-| [SETUP.md](SETUP.md) | Google Cloud API 詳細設定 |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | システム設計・ファイル構成 |
-| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | 問題解決ガイド |
+| [README.md](../README.md) | Project overview and feature list |
+| [SETUP.md](SETUP.md) | Detailed Google Cloud API setup |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design and file structure |
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Troubleshooting guide |
 
 ---
 
-## 💡 動作確認時によくあること
+## 💡 Common Issues During Testing
 
-**Q: GUI は起動するが、ボタンが反応しない**
-A: Python の version 確認、 venv が有効化されているか確認してください。[TROUBLESHOOTING.md](TROUBLESHOOTING.md) を参照。
+**Q: The GUI launches, but buttons don’t respond**  
+A: Check your Python version and ensure the virtual environment is activated. Refer to [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
-**Q: エラーメッセージが出る**
-A: エラーメッセージをコピーして [TROUBLESHOOTING.md](TROUBLESHOOTING.md) で検索。見つからない場合は [GitHub Issues](https://github.com/amekusa03/html-blogger/issues) で報告。
+**Q: An error message appears**  
+A: Copy the error message and search for it in [TROUBLESHOOTING.md](TROUBLESHOOTING.md). If not found, report it on [GitHub Issues](https://github.com/amekusa03/html-blogger/issues).
 
-**Q: 処理は完了したが、ファイルが生成されていない**
-A: data/work/ フォルダの内容を確認。
-
----
-
-## 🚀 次のステップ
-
-1. ✅ 異常処理対応
-2. ✅ データクラス化、スレッド最適化
+**Q: Processing completes, but no files are generated**  
+A: Check the contents of the `data/work/` folder.
 
 ---
 
-**最終更新**: 2026年2月12日
+## 🚀 Next Steps
 
-**動作確認の結果を教えてもらえると、今後の改善に役立ちます！**
+1. ✅ Handle exception cases  
+2. ✅ Convert to data classes and optimize threading  
+
+---
+
+**Last Updated**: February 12, 2026
+
+**Sharing your test results will help improve the project!**

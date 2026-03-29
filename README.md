@@ -1,91 +1,88 @@
-# HTML to Blogger Ver0.98
+# HTML to Blogger Ver 0.98
 
-ローカルにあるHTMLファイルと画像を、自動的に処理してBloggerに投稿するためのデスクトップアプリケーションです。
-HTMLのクリーニング、画像への透かし追加、キーワードや位置情報の付与、そしてBloggerへのアップロードを実行します。
+HTML to Blogger is a desktop application designed to automate the processing and uploading of local HTML files and images to Blogger. It handles HTML sanitization, image watermarking, metadata generation (keywords and geolocation), and seamless publishing via the Blogger API.
 
-## Qiita記事
+## Resources
 
-[本ツールの解説記事 (Qiita)](https://qiita.com/amekusa03/items/b8ac77cd3dd6e6cc65aa)
+*   **Detailed Guide:** [Read the full article on Qiita (Japanese)](https://qiita.com/amekusa03/items/b8ac77cd3dd6e6cc65aa)
+*   **Demo Video:**
 
-## 紹介動画
+    [![Watch the Demo](https://img.youtube.com/vi/gFgYCVHIfW0/maxresdefault.jpg)](https://youtu.be/gFgYCVHIfW0?si=fby7oARRbfOy2K4K)
 
-[![紹介動画](https://img.youtube.com/vi/gFgYCVHIfW0/maxresdefault.jpg)](https://youtu.be/gFgYCVHIfW0?si=fby7oARRbfOy2K4K)
+## Key Features
 
-## 主な機能
+*   **HTML Sanitization**: Automatically removes unnecessary tags and normalizes formatting for Blogger compatibility.
+*   **Image Optimization**: Strips EXIF metadata and adds customizable watermarks.
+*   **Automated Metadata**: Extracts keywords (`search` tags) and geolocation (`georss` tags) by analyzing post content.
+*   **Blogger Integration**: Uploads articles as drafts with updated image links using the Blogger API.
+*   **User-Friendly GUI**: Intuitive interface with progress tracking and error recovery tools.
 
-*   **HTMLクリーニング**: 投稿に不要なタグの削除、フォーマットの正規化。
-*   **画像処理**: 画像のEXIF削除、透かし（ウォーターマーク）の追加。
-*   **メタデータ付与**: 本文解析によるキーワード(`search`タグ)や位置情報(`georss`タグ)の自動追加。
-*   **Bloggerアップロード**: 画像リンクと記事をBlogger APIを使用して下書きとして投稿。
-*   **GUI操作**: 進行状況の可視化、エラー時のリカバリー機能などを備えた使いやすいGUI。
+## Processing Workflow
 
-## 処理の流れ
+The application executes tasks in the following order:
 
-以下の順番で処理が実行されます:
+1.  **`import_file.py`**: Transfers files from the "Reports" (source) folder to the workspace.
+2.  **`serial_file.py`**: Renames files using a sequential numbering format.
+3.  **`clean_html.py`**: Sanitizes HTML for Blogger-specific requirements.
+4.  **`find_keyword.py`**: Extracts keywords from the article body.
+5.  **`find_location.py`**: Identifies place names and attaches geolocation data.
+6.  **`find_date.py`**: Parses dates within the article.
+7.  **`mod_image.py`**: Processes images (resizing and watermarking).
+8.  **`upload_image.py`**: Prepares images for upload.
+9.  **`import_media_manager.py`**: Cleans up the Media Manager workspace.
+10. **`link_html.py`**: Updates image URLs within the HTML to point to Blogger.
+11. **`upload_art.py`**: Uploads the finalized article to Blogger.
 
-1.  **`import_file.py`**: 原稿フォルダから作業フォルダへファイルを取り込みます。
-2.  **`serial_file.py`**: ファイル名を連番形式に変換します。
-3.  **`clean_html.py`**: HTMLをBlogger用にクリーンアップします。
-4.  **`find_keyword.py`**: 記事本文からキーワードを抽出します。
-5.  **`find_location.py`**: 記事内の地名を抽出し、位置情報を付与します。
-6.  **`find_date.py`**: 記事内の日付を解析します。
-7.  **`mod_image.py`**: 画像の加工（リサイズ、透かし追加）を行います。
-8.  **`upload_image.py`**: 画像をアップロード用に準備します。
-9.  **`import_media_manager.py`**: メディアマネージャー用フォルダをクリーンアップします。
-10. **`link_html.py`**: HTML内の画像リンクを更新します。
-11. **`upload_art.py`**: 完成した記事をBloggerにアップロードします。
+## Project Structure
 
-## ファイル構成
+### Core Components
+*   **`html_tobrogger.py`**: Main GUI application entry point.
+*   **`main_process.py`**: Logic for controlling the processing flow.
 
-### メインファイル
-*   **`html_tobrogger.py`**: メインGUIアプリケーション
-*   **`main_process.py`**: 処理フローの制御
+### Processing Modules
+*   **`import_file.py`**: File import and validation.
+*   **`serial_file.py`**: File serialization.
+*   **`clean_html.py`**: HTML sanitization.
+*   **`find_keyword.py`**: Keyword extraction.
+*   **`find_location.py`**: Geolocation tagging.
+*   **`find_date.py`**: Date analysis.
+*   **`mod_image.py`**: Image processing.
+*   **`upload_image.py`**: Image upload preparation.
+*   **`import_media_manager.py`**: Media manager cleanup.
+*   **`link_html.py`**: HTML link updates.
+*   **`upload_art.py`**: Article publishing.
 
-### 処理モジュール
-*   **`import_file.py`**: ファイル取り込み検証
-*   **`serial_file.py`**: ファイル名の連番化
-*   **`clean_html.py`**: HTMLクリーニング
-*   **`find_keyword.py`**: キーワード抽出
-*   **`find_location.py`**: 位置情報付与
-*   **`find_date.py`**: 日付抽出
-*   **`mod_image.py`**: 画像加工
-*   **`upload_image.py`**: 画像準備
-*   **`import_media_manager.py`**: メディアマネージャークリーンアップ
-*   **`link_html.py`**: HTMLリンク更新
-*   **`upload_art.py`**: 記事アップロード
+### Utilities
+*   **`file_class.py`**: File management helper.
+*   **`parameter.py`**: Shared constants and configuration loader.
+*   **`auth_google.py`**: Google OAuth 2.0 authentication.
+*   **`cons_progressber.py`**: Console-based progress indicators.
 
-### ユーティリティ
-*   **`file_class.py`**: ファイル管理クラス
-*   **`parameter.py`**: 共通定数・設定読み込み
-*   **`auth_google.py`**: Google認証処理
-*   **`cons_progressber.py`**: コンソール進捗バー表示
+### Configuration (Stored in `data/`)
+*   **`config.json5`**: Global application settings.
+*   **`log_config.json5`**: Logging configuration.
+*   **`serial.json5`**: Serial number counter (managed automatically).
+*   **`keywords.xml`**: Meta-keyword definitions.
+*   **`location.xml`**: Geolocation cache (updated automatically).
+*   **`credentials.json`**: Google API credentials (User-provided).
+*   **`token.pickle`**: Authentication token (Auto-generated).
 
-### 設定ファイル（`data/` フォルダ内）
-*   **`config.json5`**: アプリケーション全体の設定
-*   **`log_config.json5`**: ログ出力の設定
-*   **`serial.json5`**: シリアル番号カウンター（自動管理）
-*   **`keywords.xml`**: メタキーワード定義
-*   **`location.xml`**: 位置情報キャッシュ（自動更新）
-*   **`credentials.json`**: Google認証情報（要ユーザー配置、GitHubに含めない）
-*   **`token.pickle`**: 認証トークン（自動生成）
+### Others
+*   **`requirements.txt`**: List of Python dependencies.
+*   **`pyproject.toml`**: Project configuration.
 
-### その他
-*   **`requirements.txt`**: 必要なPythonパッケージ一覧
-*   **`pyproject.toml`**: プロジェクト設定
+## Requirements
 
-## 動作環境
+*   Python 3.8 or higher.
+*   A Google Cloud Platform (GCP) project with the **Blogger API v3** enabled.
 
-*   Python 3.8 以上
-*   Google Cloud Platform (GCP) プロジェクトとBlogger APIの有効化
+## Installation
 
-## インストール方法
+### 1. Clone/Download
+Place the project files in your desired directory.
 
-### 1. ソースコードの配置
-このツール一式を任意のフォルダに配置してください。
-
-### 2. 依存ライブラリのインストール
-以下のコマンドを実行して、必要なPythonライブラリをインストールします。
-`requirements.txt` が含まれているため、一括インストールが可能です。
+### 2. Install Dependencies
+Install the required libraries using pip:
 
 ```bash
 pip install -r requirements.txt
