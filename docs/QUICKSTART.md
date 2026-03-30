@@ -4,6 +4,11 @@ Get up and running with HTML to Blogger in just 5 minutes.
 
 ## ⚡ Quick Start (5 Minutes)
 
+### 📺 Video Tutorial
+Before starting, you can watch our [Introduction Video on YouTube](https://youtu.be/gFgYCVHIfW0) to see the tool in action.
+
+---
+
 ### Step 1: Clone the Repository
 ```bash
 git clone https://github.com/amekusa03/html-blogger.git

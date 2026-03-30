@@ -4,6 +4,11 @@
 
 ## ⚡ 最速セットアップ（5分）
 
+### 📺 解説動画
+セットアップの前に、[紹介動画 (YouTube)](https://youtu.be/gFgYCVHIfW0) で全体の流れを確認することをお勧めします。
+
+---
+
 ### ステップ 1: リポジトリをクローン
 ```bash
 git clone https://github.com/amekusa03/html-blogger.git
