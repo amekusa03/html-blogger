@@ -70,23 +70,18 @@ def run(queue_obj):
 
     for path in all_files:
         src_file = SmartFile(path)
-        if src_file.is_file():
-            if src_file.suffix.lower() in html_extensions:
-                src_file.status = "⏳"
-                src_file.extensions = "html"
-                src_file.disp_path = src_file.name
-                queue_obj.put(src_file)
-
-    for path in all_files:
-        src_file = SmartFile(path)
-        if src_file.is_file():
-            if src_file.suffix.lower() in html_extensions:
-                src_file = add_keywords_to_content(src_file)
-                src_file.status = "✔"
-                src_file.extensions = "html"
-                src_file.disp_path = src_file.name
-                queue_obj.put(src_file)
-                count += 1
+        if not src_file.is_file():
+            continue
+        if src_file.suffix.lower() not in html_extensions:
+            continue
+        src_file.extensions = "html"
+        src_file.disp_path = src_file.name
+        src_file.status = "⏳"
+        queue_obj.put(src_file)
+        src_file = add_keywords_to_content(src_file)
+        src_file.status = "✔"
+        queue_obj.put(src_file)
+        count += 1
     logger.info("キーワード注入完了: %d件", count)
 
 
@@ -169,10 +164,6 @@ def add_keywords_to_content(files):
         # カンマ、読点などで分割
         words = [k.strip() for k in re.split(r"[,，、]", kw_str) if k.strip()]
         body_keywords.extend(words)
-
-    # 抽出元の行を削除 (空行が残らないように改行もケア)
-    # 本文からキーワード行を削除すると空のタグが残る場合があるため、削除処理をスキップします
-    # html_content = re.sub(r'キーワード[:：]\s*[^\n\r]+[\r\n]*', '', html_content)
 
     # 2. キーワードをすべて集める
     all_keywords = []

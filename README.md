@@ -134,7 +134,7 @@ Save your blog ID in `config.json5`.
    * Save the new post as a **draft**.  
    * Once done, click "Run" again in the tool.  
 
-3. **Media Manager Parsing**:
+4. **Media Manager Parsing**:
    * A guidance dialog will appear and open the HTML save folder.  
    * Switch the Blogger post screen to "Media Manager" and save it in HTML format into the `media_man` folder.  
    * Save the copied code as a text file (e.g., `blogger.html`) in the save folder.  

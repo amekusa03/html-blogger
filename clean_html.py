@@ -67,23 +67,18 @@ def run(queue_obj):
 
     for path in all_files:
         src_file = SmartFile(path)
-        if src_file.is_file():
-            if src_file.suffix.lower() in html_extensions:
-                src_file.status = "⏳"
-                src_file.extensions = "html"
-                src_file.disp_path = src_file.name
-                queue_obj.put(src_file)
-
-    for path in all_files:
-        src_file = SmartFile(path)
-        if src_file.is_file():
-            if src_file.suffix.lower() in html_extensions:
-                src_file = clean_html_for_blogger(src_file)
-                src_file.status = "✔"
-                src_file.extensions = "html"
-                src_file.disp_path = src_file.name
-                queue_obj.put(src_file)
-                count += 1
+        if not src_file.is_file():
+            continue
+        if src_file.suffix.lower() not in html_extensions:
+            continue
+        src_file.extensions = "html"
+        src_file.disp_path = src_file.name
+        src_file.status = "⏳"
+        queue_obj.put(src_file)
+        src_file = clean_html_for_blogger(src_file)
+        src_file.status = "✔"
+        queue_obj.put(src_file)
+        count += 1
     logger.info("HTMLクリーンアップ完了: %d件", count)
 
 
@@ -233,9 +228,7 @@ def clean_html_for_blogger(files):
     html_text = re.sub(r"</font>", "", html_text, flags=re.IGNORECASE)
 
     # 6. 改行整理
-    # html_text = re.sub(r'[\r\n\t]+', '\n', html_text) # 連続改行をスペース1つに
     html_text = re.sub(r"\s+", " ", html_text).strip()
-    # html_text = re.sub(r'<br.?*>', '<br />\n', html_text, flags=re.IGNORECASE)
     html_text = re.sub(
         r"(<br/>|</br>|<br>|<br\s*/>)", "<br/>\n", html_text, flags=re.IGNORECASE
     )
@@ -247,13 +240,6 @@ def clean_html_for_blogger(files):
         html_text,
         flags=re.IGNORECASE,
     )
-
-    # 【重大エラーチェック】コンテンツ削除検出
-    # head/script/styleなどの削除で大きく減ることがあるため、本文テキスト同士で比較する
-    # original_plain = re.sub(r'<[^>]*>', '', original_html)
-    # cleaned_plain = re.sub(r'<[^>]*>', '', html_text)
-    # original_length = len(original_plain)
-    # cleaned_length = len(cleaned_plain)
 
     # 11. HTML構造の正規化（<head>と<body>が存在しない場合は追加）
     soup_final = BeautifulSoup(html_text, "html.parser")

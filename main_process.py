@@ -34,11 +34,10 @@ def main_process(command_queue, result_queue):
     """コマンドキューから処理コマンドを受け取り、対応する処理を実行して結果キューにステータスを送る"""
     while True:
         try:
-            command = command_queue.get(timeout=1)  # Wait for data
-            if command is None:  # Exit signal
+            command = command_queue.get(timeout=1)
+            if command is None:  # 終了シグナル
                 break
-            # Process the data (example: square the number)
-            if command == "initial_process":
+            elif command == "initial_process":
                 # ここで初期処理を行う（処理一覧送信など）
                 logger.info(process_def[command]["name"])
                 for key, value in process_def.items():  # GUIに処理一覧を送る
@@ -47,7 +46,7 @@ def main_process(command_queue, result_queue):
                     else:
                         value["status"] = "⌛"
                     result_queue.put(value)
-            if command == "check_resume":
+            elif command == "check_resume":
                 # ここで再開チェックを行う
                 logger.info(process_def[command]["name"])
                 resume = check_resume()
@@ -57,96 +56,88 @@ def main_process(command_queue, result_queue):
                     process_def[command]["status"] = "♻"
                     result_queue.put(resume)
                 result_queue.put(process_def[command])
-            if command == "import_files":
+            elif command == "import_files":
                 logger.info(process_def[command]["name"])
                 process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])  # GUIのみ
-            if command == "check_files":
+            elif command == "check_files":
                 logger.info(process_def[command]["name"])
                 import_file.run(result_queue)
                 upload_image.rm()  # アップロード用一時フォルダをクリーンアップ
                 process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])
-            if command == "serialize_files":
+            elif command == "serialize_files":
                 logger.info(process_def[command]["name"])
                 serial_file.run(result_queue)
                 process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])
-            if command == "clean_html":
+            elif command == "clean_html":
                 logger.info(process_def[command]["name"])
                 clean_html.run(result_queue)
                 process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])
-            if command == "find_keyword":
+            elif command == "find_keyword":
                 logger.info(process_def[command]["name"])
                 find_keyword.run(result_queue)
                 process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])
-            if command == "find_location":
+            elif command == "find_location":
                 logger.info(process_def[command]["name"])
                 find_location.run(result_queue)
                 process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])
-            if command == "find_date":
+            elif command == "find_date":
                 logger.info(process_def[command]["name"])
                 find_date.run(result_queue)
                 process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])
-            if command == "mod_image":
+            elif command == "mod_image":
                 logger.info(process_def[command]["name"])
                 mod_image.run(result_queue)
                 process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])
-            if command == "upload_image":
+            elif command == "upload_image":
                 logger.info(process_def[command]["name"])
                 upload_image.run(result_queue)
                 process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])
-            if command == "import_media_manager":
+            elif command == "import_media_manager":
                 logger.info(process_def[command]["name"])
                 import_media_manager.run()
                 process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])
-            if command == "link_html":
+            elif command == "link_html":
                 logger.info(process_def[command]["name"])
                 result = link_html.run(result_queue)
                 if result is False:
                     process_def[command]["status"] = "✖"
-                    # エラー時は処理を中断（必要に応じてGUIへエラー通知を送る）
                     logger.error(
                         "HTMLリンク設定でエラーが発生しました。処理を中断します。"
                     )
-                # リンクできなかった画像がある場合の判定
-                if isinstance(result, list):
+                elif isinstance(result, list):
                     process_def[command]["status"] = "⚠"
                     logger.warning("リンク切れ画像があります: %d件", len(result))
                 else:
                     process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])  # GUIのみ
-            if command == "upload_art":
+            elif command == "upload_art":
                 logger.info(process_def[command]["name"])
                 result = upload_art.run(result_queue)
                 if result is False:
                     process_def[command]["status"] = "✖"
-                    # エラー時は処理を中断（必要に応じてGUIへエラー通知を送る）
                     logger.error(
                         "記事アップロードでエラーが発生しました。処理を中断します。"
                     )
-                if isinstance(result, list):
+                elif isinstance(result, list):
                     process_def[command]["status"] = "⏸️"
                     logger.warning("投稿制限に達した記事があります: %d件", len(result))
                 else:
                     process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])
-            if command == "closing":
+            elif command == "closing":
                 logger.info(process_def[command]["name"])
                 process_def[command]["status"] = "✔"
                 result_queue.put(process_def[command])  # GUIのみ
-            if command is None:  # Exit signal
-                break
-            # Process the data (example: square the number)
-            # result = data * data
-            # result_queue.put(result)
         except queue.Empty:
             continue
         except (ValueError, TypeError, AttributeError, KeyError) as e:

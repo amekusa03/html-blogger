@@ -136,12 +136,10 @@ def ready_upload():
 def upload_art(art_html):
     """Blogger にアップロード"""
     try:
-        # htnlファイル（ready_upload フォルダ内）
+        # htmlファイル（ready_upload フォルダ内）
         if not art_html:
             logger.info("アップロードする記事が見つかりません。")
             return True
-
-        # pbar = ProgressBar(count, prefix='Upload art')
 
         elapsed_time = time.time() - service_manager.last_execution_time
 
@@ -224,10 +222,6 @@ def upload_art(art_html):
             "blog": {"id": blog_id},
             "published": published,
         }
-
-        # 公開日時があれば追加
-        if published:
-            body["published"] = published
 
         # 位置情報があれば追加
         if location_data:

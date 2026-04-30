@@ -17,7 +17,7 @@ class SmartFile:
     def __init__(self, path_str):
         self._path = Path(path_str)
         self.status = "⌛"
-        self.extensions = ["image", "html", "other"]
+        self.extensions = "other"
         self.disp_path = None
         self.old_name = None
 

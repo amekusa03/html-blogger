@@ -13,8 +13,8 @@ import json5
 
 # 初期設定ファイル読み込み
 # 使い方　config['SECTION']['KEY']
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_JSON_PATH = os.path.join(SCRIPT_DIR, "./data/config.json5")
+SCRIPT_DIR = Path(__file__).parent
+CONFIG_JSON_PATH = SCRIPT_DIR / "data/config.json5"
 with open(CONFIG_JSON_PATH, "r", encoding="utf-8") as f:
     # JSON5ファイルを読み込んで辞書に変換
     config = json5.load(f)
@@ -84,7 +84,7 @@ def open_georss_file():
 
 def open_config_file():
     """config.json5 を標準アプリで開く"""
-    if os.path.exists(CONFIG_JSON_PATH):
+    if CONFIG_JSON_PATH.exists():
         open_file_with_default_app(CONFIG_JSON_PATH)
     else:
         logger.error("%s が見つかりません。", CONFIG_JSON_PATH)
@@ -92,8 +92,8 @@ def open_config_file():
 
 def open_folder(path):
     """指定フォルダをファイルマネージャで開く"""
-    abs_path = os.path.abspath(path)
-    if os.path.exists(abs_path) and os.path.isdir(abs_path):
+    abs_path = Path(path).resolve()
+    if abs_path.exists() and abs_path.is_dir():
         open_file_with_default_app(abs_path)
     else:
         logger.error("%s が見つかりません。", abs_path)
@@ -106,7 +106,7 @@ def to_bool(value):
     return bool(value)
 
 
-SERIAL_JSON_PATH = os.path.join(SCRIPT_DIR, "./data/serial.json5")
+SERIAL_JSON_PATH = SCRIPT_DIR / "data/serial.json5"
 
 
 def load_serial():
